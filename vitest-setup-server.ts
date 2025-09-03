@@ -12,9 +12,7 @@ if (typeof global.OffscreenCanvas === 'undefined') {
    * @see https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas/convertToBlob
    * @since NodeJS v18.0.0
    */
-  global.OffscreenCanvas.prototype.convertToBlob = async function (
-    options = {}
-  ) {
+  global.OffscreenCanvas.prototype.convertToBlob = async function (options = {}) {
     // If the user agent does not support the requested type, then it must create the file using the PNG format.
     // ref: https://html.spec.whatwg.org/multipage/canvas.html#a-serialisation-of-the-bitmap-as-a-file
     const type =
@@ -22,16 +20,14 @@ if (typeof global.OffscreenCanvas === 'undefined') {
         ? options.type
         : 'image/png';
 
-    const quality =
-      options.quality != null ? { quality: options.quality } : undefined;
+    const quality = options.quality != null ? { quality: options.quality } : undefined;
 
     return new Promise((resolve, reject) => {
       // @ts-expect-error https://github.com/jimmywarting/node-canvas/blob/feature/convertToBlob/lib/canvas.js#L54
       this.toBuffer(
-        (err: Error, buf: Buffer) =>
-          err ? reject(err) : resolve(new Blob([buf], { type })),
+        (err: Error, buf: Buffer) => (err ? reject(err) : resolve(new Blob([buf], { type }))),
         type,
-        quality
+        quality,
       );
     });
   };

@@ -4,6 +4,6 @@ import type { CarvingKnifeSlice } from '$lib/CarvingKnife/CarvingKnifeSlice';
 export interface Chef {
   process(
     slices: ReadonlyArray<CarvingKnifeSlice<ImageFile>>,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): AsyncGenerator<ImageFile>;
 }

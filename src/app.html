@@ -5,16 +5,19 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/images/icon-128px.png" />
     <link rel="manifest" href="%sveltekit.assets%/manifest.json" />
-    <meta name="description" content="Your ultimate webtoon sidekick! Stitch, slice, and crop comic panels with ease. Features automatic cut detection, manual editing, and ZIP export. Free, fast, private & PWA-enabled.">
+    <meta
+      name="description"
+      content="Your ultimate webtoon sidekick! Stitch, slice, and crop comic panels with ease. Features automatic cut detection, manual editing, and ZIP export. Free, fast, private & PWA-enabled."
+    />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
     />
     <script>
-      window.addEventListener('beforeinstallprompt', event => {
+      window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         window.deferredInstallPrompt = event;
-      })
+      });
     </script>
     %sveltekit.head%
   </head>

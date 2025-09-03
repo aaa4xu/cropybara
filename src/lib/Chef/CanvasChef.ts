@@ -7,7 +7,7 @@ export class CanvasChef implements Chef {
 
   public async *process(
     slices: ReadonlyArray<CarvingKnifeSlice<ImageFile>>,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): AsyncGenerator<ImageFile> {
     const ctx = this.canvas.getContext('2d');
 
@@ -34,7 +34,7 @@ export class CanvasChef implements Chef {
           chunk.dstX,
           chunk.dstY,
           chunk.dstWidth,
-          chunk.dstHeight
+          chunk.dstHeight,
         );
       }
 
@@ -42,7 +42,7 @@ export class CanvasChef implements Chef {
       yield new ImageFile(
         new File([blob], `${(i + 1).toString().padStart(length, '0')}.png`),
         slice.width,
-        slice.height
+        slice.height,
       );
     }
 

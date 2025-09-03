@@ -2,10 +2,7 @@ import { createCanvas, loadImage } from 'canvas';
 
 export const losslessThreshold = 0.000001;
 
-export async function mae(
-  value: Uint8Array | string,
-  golden: Uint8Array | string
-) {
+export async function mae(value: Uint8Array | string, golden: Uint8Array | string) {
   const [img1, img2] = await Promise.all([
     loadImage(typeof value === 'string' ? value : Buffer.from(value)),
     loadImage(typeof golden === 'string' ? golden : Buffer.from(golden)),

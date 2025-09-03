@@ -10,12 +10,7 @@ export class NodeImageFile extends ImageFile {
     const file = new File([imageBuffer], filename, { type: `image/png` });
     const img = await loadImage(imageBuffer);
 
-    return new NodeImageFile(
-      file,
-      img.width,
-      img.height,
-      filepath.split('/').pop()!,
-    );
+    return new NodeImageFile(file, img.width, img.height, filepath.split('/').pop()!);
   }
 
   public async image(): Promise<HTMLImageElement> {

@@ -57,7 +57,8 @@
     border-color: var(--color-border-focus);
   }
 
-  &:disabled, &.disabled {
+  &:disabled,
+  &.disabled {
     color: var(--color-text-muted);
     border-color: var(--color-border-disabled);
   }

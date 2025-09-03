@@ -7,7 +7,7 @@ describe('CarvingKnife', () => {
   class MockSource implements CarvingKnifeSource {
     constructor(
       readonly width: number,
-      readonly height: number
+      readonly height: number,
     ) {}
   }
 
@@ -15,11 +15,7 @@ describe('CarvingKnife', () => {
 
   beforeEach(() => {
     // Reset sources before each test
-    sources = [
-      new MockSource(100, 200),
-      new MockSource(100, 300),
-      new MockSource(100, 250)
-    ];
+    sources = [new MockSource(100, 200), new MockSource(100, 300), new MockSource(100, 250)];
   });
 
   it('should throw an error if sources array is empty', () => {
@@ -34,19 +30,17 @@ describe('CarvingKnife', () => {
         chunks: expect.arrayContaining([
           expect.objectContaining({ src: sources[0] }),
           expect.objectContaining({ src: sources[1] }),
-          expect.objectContaining({ src: sources[2] })
+          expect.objectContaining({ src: sources[2] }),
         ]),
         height: totalHeight,
-        width: 100
-      }
+        width: 100,
+      },
     ]);
   });
 
   it('should throw an error if cut is beyond total height', () => {
     const totalHeight = sources.reduce((acc, src) => acc + src.height, 0);
-    expect(() => CarvingKnife.cut(sources, [totalHeight + 100])).toThrow(
-      'Zero height slice'
-    );
+    expect(() => CarvingKnife.cut(sources, [totalHeight + 100])).toThrow('Zero height slice');
   });
 
   it('should handle cuts at source boundaries', () => {
@@ -70,7 +64,7 @@ describe('CarvingKnife', () => {
     const specialSources = [
       new MockSource(100, 100),
       new MockSource(100, 0), // This would cause an issue
-      new MockSource(100, 100)
+      new MockSource(100, 100),
     ];
 
     expect(() => {
@@ -82,7 +76,7 @@ describe('CarvingKnife', () => {
     const mixedWidthSources = [
       new MockSource(100, 200),
       new MockSource(150, 300), // Different width
-      new MockSource(100, 250)
+      new MockSource(100, 250),
     ];
 
     const result = CarvingKnife.cut(mixedWidthSources, [300]);
@@ -130,8 +124,6 @@ describe('CarvingKnife', () => {
 
   it('should throw an error if cuts at same position', () => {
     // Duplicate cuts at the same position
-    expect(() => CarvingKnife.cut(sources, [200, 200, 400])).toThrow(
-      'Zero height slice'
-    );
+    expect(() => CarvingKnife.cut(sources, [200, 200, 400])).toThrow('Zero height slice');
   });
 });

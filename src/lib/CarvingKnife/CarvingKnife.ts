@@ -5,7 +5,7 @@ import type { CarvingKnifeSource } from './CarvingKnifeSource';
 export class CarvingKnife {
   public static cut<T extends CarvingKnifeSource>(
     sources: ReadonlyArray<T>,
-    cuts: ReadonlyArray<number>
+    cuts: ReadonlyArray<number>,
   ): CarvingKnifeSlice<T>[] {
     if (sources.length === 0) {
       throw new Error('Empty sources');
@@ -16,10 +16,7 @@ export class CarvingKnife {
       throw new Error(`Zero height source`);
     }
 
-    const scrollHeight = sources.reduce(
-      (acc, source) => acc + source.height,
-      0
-    );
+    const scrollHeight = sources.reduce((acc, source) => acc + source.height, 0);
     const src = this.calculateSourceOffset(sources);
 
     const slices: CarvingKnifeSlice<T>[] = [];
@@ -32,10 +29,7 @@ export class CarvingKnife {
       }
 
       const chunks = src
-        .filter(
-          (source) =>
-            source.offset + source.image.height > start && source.offset < end
-        )
+        .filter((source) => source.offset + source.image.height > start && source.offset < end)
         .map((chunk): CarvingKnifeSliceChunk<T> => {
           let targetY = chunk.offset - start;
           let sourceY = 0;
@@ -45,9 +39,7 @@ export class CarvingKnife {
             targetY = 0;
           }
 
-          const height =
-            Math.min(targetY + chunk.image.height - sourceY, end - start) -
-            targetY;
+          const height = Math.min(targetY + chunk.image.height - sourceY, end - start) - targetY;
 
           if (height === 0) {
             throw new Error('Zero height chunk');
@@ -62,14 +54,14 @@ export class CarvingKnife {
             srcX: 0,
             dstX: 0,
             srcY: sourceY,
-            dstY: targetY
+            dstY: targetY,
           };
         });
 
       slices.push({
         chunks,
         height: end - start,
-        width: sources[0].width
+        width: sources[0].width,
       });
     }
 
@@ -77,13 +69,13 @@ export class CarvingKnife {
   }
 
   private static calculateSourceOffset<T extends CarvingKnifeSource>(
-    sources: ReadonlyArray<T>
+    sources: ReadonlyArray<T>,
   ): Array<{ image: T; offset: number }> {
     return sources.reduce(
       (acc, source) => {
         acc.sources.push({
           image: source,
-          offset: acc.current
+          offset: acc.current,
         });
 
         acc.current += source.height;
@@ -92,11 +84,11 @@ export class CarvingKnife {
       },
       {
         sources: [],
-        current: 0
+        current: 0,
       } as {
         sources: Array<{ image: T; offset: number }>;
         current: number;
-      }
+      },
     ).sources;
   }
 }
