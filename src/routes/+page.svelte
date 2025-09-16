@@ -25,6 +25,7 @@
   import { browser } from '$app/environment';
   import type { Denoiser } from '$lib/Denoiser/Denoiser';
   import { Unwatermarker } from '$lib/Denoiser/Unwatermarker';
+  import { DOM_EXCEPTION_NAMES, hasDomExceptionName } from '$lib/utils/domException';
 
   let images: ImageFile[] = $state([]);
   let config: ConfigState | null = $state(null);
@@ -214,7 +215,11 @@
       Analytics.trackScreen('ResultScreen');
     } catch (err) {
       console.error(err);
-      alerts.display(AlertsLevel.Error, m.EditorScreen_SaverError());
+      if (hasDomExceptionName(err, DOM_EXCEPTION_NAMES.NoModificationAllowed)) {
+        alerts.display(AlertsLevel.Error, m.EditorScreen_SaverLocationNotWritable());
+      } else {
+        alerts.display(AlertsLevel.Error, m.EditorScreen_SaverError());
+      }
     } finally {
       progressBar.remove(getter);
     }

@@ -3,6 +3,7 @@
   import type { LocalFilesPickerProps } from '$lib/LocalFilesPickerProps';
   import { ProgressBarState, type ProgressBarStateItem } from '$lib/States/ProgressBarState.svelte';
   import { AlertsLevel, AlertsState } from '$lib/States/AlertsState.svelte';
+  import { DOM_EXCEPTION_NAMES, hasDomExceptionName } from '$lib/utils/domException';
 
   const { onFiles }: LocalFilesPickerProps = $props();
   const progressBar = ProgressBarState.use();
@@ -10,17 +11,8 @@
   let displayDropZone = $state(false);
   let dragCounter = $state(0);
 
-  const NOT_FOUND_ERROR_NAME = 'NotFoundError';
-
-  function isDomException(err: unknown, name: string): boolean {
-    if (typeof DOMException !== 'undefined' && err instanceof DOMException) {
-      return err.name === name;
-    }
-    return typeof err === 'object' && err !== null && 'name' in err && (err as { name?: string }).name === name;
-  }
-
   function displayEntryError(entryName: string, err: unknown) {
-    if (isDomException(err, NOT_FOUND_ERROR_NAME)) {
+    if (hasDomExceptionName(err, DOM_EXCEPTION_NAMES.NotFound)) {
       alerts.display(AlertsLevel.Error, m.Picker_DragAndDropHandler_EntryUnavailable({ name: entryName }));
       return;
     }

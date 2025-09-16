@@ -54,5 +54,6 @@
   "ConfigScreen_Unwatermark_Select_Label": "Удаление ватермарки",
   "ConfigScreen_Unwatermark_Select_Option_Off": "Не требуется",
   "EditorScreen_SaverError": "Не удалось сохранить результат на диск",
+  "EditorScreen_SaverLocationNotWritable": "Не удалось сохранить в выбранную папку. Возможно, она только для чтения или недоступна офлайн. Выберите другое место.",
   "Done": "Все изображения успешно порезаны."
 }

@@ -54,5 +54,6 @@
   "ConfigScreen_Unwatermark_Select_Label": "Unwatermark",
   "ConfigScreen_Unwatermark_Select_Option_Off": "Don't use",
   "EditorScreen_SaverError": "Failed to save the result to disk",
+  "EditorScreen_SaverLocationNotWritable": "Can't save to the selected folder. It may be read-only or offline. Please choose another location.",
   "Done": "All images have been successfully sliced."
 }
