@@ -10,6 +10,30 @@
   let displayDropZone = $state(false);
   let dragCounter = $state(0);
 
+  const NOT_FOUND_ERROR_NAME = 'NotFoundError';
+
+  function isDomException(err: unknown, name: string): boolean {
+    if (typeof DOMException !== 'undefined' && err instanceof DOMException) {
+      return err.name === name;
+    }
+    return typeof err === 'object' && err !== null && 'name' in err && (err as { name?: string }).name === name;
+  }
+
+  function displayEntryError(entryName: string, err: unknown) {
+    if (isDomException(err, NOT_FOUND_ERROR_NAME)) {
+      alerts.display(AlertsLevel.Error, m.Picker_DragAndDropHandler_EntryUnavailable({ name: entryName }));
+      return;
+    }
+
+    alerts.display(
+      AlertsLevel.Error,
+      m.Picker_DragAndDropHandler_ErrorWhileReadingFile({
+        name: entryName,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+
   function handleDragEnter(event: DragEvent) {
     if (!event.dataTransfer?.types.includes('Files')) return;
     event.preventDefault();
@@ -129,13 +153,7 @@
           }, reject),
         );
       } catch (err) {
-        alerts.display(
-          AlertsLevel.Error,
-          m.Picker_DragAndDropHandler_ErrorWhileReadingFile({
-            name: entry.name,
-            error: err instanceof Error ? err.message : String(err),
-          }),
-        );
+        displayEntryError(parent + entry.name, err);
       }
     } else if (entry.isDirectory) {
       // For FileSystemDirectoryEntry, create a reader.
@@ -149,15 +167,25 @@
         });
       };
 
-      let entriesBatch: FileSystemEntry[];
-      do {
-        entriesBatch = await readEntriesBatch();
+      while (true) {
+        let entriesBatch: FileSystemEntry[];
+        try {
+          entriesBatch = await readEntriesBatch();
+        } catch (err) {
+          displayEntryError(parent + entry.name + '/', err);
+          break;
+        }
+
+        if (entriesBatch.length === 0) {
+          break; // Continue until readEntries returns an empty array
+        }
+
         state.total += entriesBatch.length;
         for (const subEntry of entriesBatch) {
           // Recursively yield files from sub-entries.
           yield* getFilesRecursivelyWithEntriesAPI(subEntry, state, parent + entry.name + '/');
         }
-      } while (entriesBatch.length > 0); // Continue until readEntries returns an empty array
+      }
     }
 
     state.ready++; // Increment ready after entry is processed
@@ -180,21 +208,21 @@
             lastModified: file.lastModified,
           });
         } catch (err) {
-          alerts.display(
-            AlertsLevel.Error,
-            m.Picker_DragAndDropHandler_ErrorWhileReadingFile({
-              name: entry.name,
-              error: err instanceof Error ? err.message : String(err),
-            }),
-          );
+          displayEntryError(parent + entry.name, err);
         }
         break;
       }
 
       case 'directory': {
-        const entries: Array<FileSystemFileHandle | FileSystemDirectoryHandle> =
-          // @ts-expect-error https://developer.mozilla.org/en-US/docs/Web/API/FileSystemDirectoryHandle/values
-          await Array.fromAsync(entry.values());
+        let entries: Array<FileSystemFileHandle | FileSystemDirectoryHandle>;
+        try {
+          entries =
+            // @ts-expect-error https://developer.mozilla.org/en-US/docs/Web/API/FileSystemDirectoryHandle/values
+            await Array.fromAsync(entry.values());
+        } catch (err) {
+          displayEntryError(parent + entry.name + '/', err);
+          break;
+        }
         state.total += entries.length;
 
         for (const handle of entries) {

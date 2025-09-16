@@ -15,6 +15,7 @@
   "Picker_DragAndDropHandler_Label": "File drop zone",
   "Picker_DragAndDropHandler_UnknownEntryKind": "Encountered an item \"{name}\" with an unknown type.",
   "Picker_DragAndDropHandler_ErrorWhileReadingFile": "Error reading file {name}: {error}",
+  "Picker_DragAndDropHandler_EntryUnavailable": "Can't access \"{name}\". It may have been removed or is only available online. Please make it available locally and try again.",
   "Picker_DragAndDropHandler_UnknownEntryAPI": "Error processing dropped item: Unsupported browser API.",
   "Picker_DragAndDropHandler_ErrorProcessingItem": "Error processing dropped item: {error}",
   "Picker_LocalFilePicker_Header": "Select images",

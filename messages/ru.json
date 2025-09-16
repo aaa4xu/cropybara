@@ -15,6 +15,7 @@
   "Picker_DragAndDropHandler_Label": "Область для загрузки файлов",
   "Picker_DragAndDropHandler_UnknownEntryKind": "Обнаружен элемент \"{name}\" неизвестного типа.",
   "Picker_DragAndDropHandler_ErrorWhileReadingFile": "Ошибка чтения файла {name}: {error}",
+  "Picker_DragAndDropHandler_EntryUnavailable": "Не удалось получить доступ к \"{name}\". Возможно, файл или папка были удалены либо доступны только в облаке. Сделайте их доступными локально и попробуйте ещё раз.",
   "Picker_DragAndDropHandler_UnknownEntryAPI": "Ошибка обработки перетащенного элемента: Неподдерживаемый API браузера.",
   "Picker_DragAndDropHandler_ErrorProcessingItem": "Ошибка обработки перетащенного элемента: {error}",
   "Picker_LocalFilePicker_Header": "Выбор изображений",
