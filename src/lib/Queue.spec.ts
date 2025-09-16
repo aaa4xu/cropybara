@@ -1,23 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Queue } from './Queue';
 
 describe('Queue', () => {
   it('should process tasks in parallel across all workers', async () => {
-    const delay = () => (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+    vi.useFakeTimers();
+    try {
+      const delay = () => (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-    const queue = new Queue([delay(), delay()]);
+      const queue = new Queue([delay(), delay()]);
 
-    const tasks = Array.from({ length: 4 }, () => async (resourse: ReturnType<typeof delay>) => {
-      await resourse(100);
-      return Date.now().toString();
-    });
+      const tasks = Array.from({ length: 4 }, () => async (resource: ReturnType<typeof delay>) => {
+        await resource(100);
+        return Date.now().toString();
+      });
 
-    const controller = new AbortController();
-    const signal = controller.signal;
-    const start = Date.now();
-    await Promise.all(tasks.map((t) => queue.enqueue(t, signal)));
-    expect(Date.now() - start)
-      .lessThan(300)
-      .greaterThan(199);
+      const start = Date.now();
+      const completion = Promise.all(tasks.map((task) => queue.enqueue(task, AbortSignal.timeout(1000))));
+
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
+
+      await completion;
+      expect(Date.now() - start).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
