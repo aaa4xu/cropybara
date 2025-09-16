@@ -1,21 +1,24 @@
 import '@testing-library/jest-dom/vitest';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib/States/ProgressBarState.svelte', () => ({
-  ProgressBarState: {
-    use: vi.fn(),
-  },
+import {
+  assignInputFiles,
+  createBrowserModule,
+  createProgressBarMock,
+  resetMocks,
+  setupProgressBarMock,
+} from './testUtils';
+
+const { browserFlag } = vi.hoisted(() => ({
+  browserFlag: { value: true },
 }));
 
-vi.mock('$app/environment', () => ({
-  browser: true,
-}));
+vi.mock('$app/environment', () => createBrowserModule(browserFlag));
 
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { ProgressBarState } from '$lib/States/ProgressBarState.svelte';
 import DirectoryPickerButton from './DirectoryPickerButton.svelte';
 
-const useMock = ProgressBarState.use as unknown as ReturnType<typeof vi.fn>;
+const useMock = setupProgressBarMock();
 const originalDirectoryDescriptor = Object.getOwnPropertyDescriptor(
   HTMLInputElement.prototype,
   'webkitdirectory',
@@ -38,7 +41,8 @@ function resetDirectorySupport() {
 
 describe('DirectoryPickerButton', () => {
   beforeEach(() => {
-    useMock.mockReset();
+    resetMocks(useMock);
+    browserFlag.value = true;
     resetDirectorySupport();
   });
 
@@ -47,7 +51,7 @@ describe('DirectoryPickerButton', () => {
   });
 
   it('does not render when directory input is not supported', () => {
-    useMock.mockReturnValue({ display: false });
+    createProgressBarMock(useMock);
 
     render(DirectoryPickerButton, { props: { onFiles: vi.fn() } });
 
@@ -55,7 +59,7 @@ describe('DirectoryPickerButton', () => {
   });
 
   it('renders a directory input when supported', () => {
-    useMock.mockReturnValue({ display: false });
+    createProgressBarMock(useMock);
     enableDirectorySupport();
 
     render(DirectoryPickerButton, { props: { onFiles: vi.fn() } });
@@ -71,7 +75,7 @@ describe('DirectoryPickerButton', () => {
   });
 
   it('disables the picker while progress bar is visible', () => {
-    useMock.mockReturnValue({ display: true });
+    createProgressBarMock(useMock, { display: true });
     enableDirectorySupport();
 
     render(DirectoryPickerButton, { props: { onFiles: vi.fn() } });
@@ -84,7 +88,7 @@ describe('DirectoryPickerButton', () => {
   });
 
   it('sorts files before invoking onFiles callback', async () => {
-    useMock.mockReturnValue({ display: false });
+    createProgressBarMock(useMock);
     enableDirectorySupport();
 
     const onFiles = vi.fn();
@@ -96,17 +100,7 @@ describe('DirectoryPickerButton', () => {
       new File(['a'], 'chapter-2/page-12.png', { type: 'image/png' }),
     ];
 
-    const fileList = {
-      0: unsortedFiles[0],
-      1: unsortedFiles[1],
-      length: unsortedFiles.length,
-      item: (index: number) => unsortedFiles[index] ?? null,
-    } as unknown as FileList;
-
-    Object.defineProperty(input, 'files', {
-      configurable: true,
-      value: fileList,
-    });
+    assignInputFiles(input, unsortedFiles);
 
     await fireEvent.change(input);
 

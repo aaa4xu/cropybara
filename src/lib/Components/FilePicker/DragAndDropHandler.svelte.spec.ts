@@ -1,39 +1,19 @@
 import '@testing-library/jest-dom/vitest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
 
-vi.mock('$lib/States/ProgressBarState.svelte', () => ({
-  ProgressBarState: {
-    use: vi.fn(),
-  },
+import { createAlertsModule, createProgressBarMock, resetMocks, setupProgressBarMock } from './testUtils';
+
+const { alertsDisplayMock } = vi.hoisted(() => ({
+  alertsDisplayMock: vi.fn(),
 }));
 
-const alertsDisplayMock = vi.fn();
-
-vi.mock('$lib/States/AlertsState.svelte', () => {
-  const AlertsLevel = {
-    Error: 'error',
-    Warning: 'warning',
-    Info: 'info',
-    Success: 'success',
-  } as const;
-
-  return {
-    AlertsLevel,
-    AlertsState: {
-      use: vi.fn(() => ({
-        display: alertsDisplayMock,
-      })),
-    },
-  };
-});
+vi.mock('$lib/States/AlertsState.svelte', () => createAlertsModule(alertsDisplayMock));
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
-import { ProgressBarState } from '$lib/States/ProgressBarState.svelte';
 import { AlertsLevel } from '$lib/States/AlertsState.svelte';
 import DragAndDropHandler from './DragAndDropHandler.svelte';
 
-const progressBarUseMock = ProgressBarState.use as unknown as Mock;
+const progressBarUseMock = setupProgressBarMock();
 
 const originalDragEvent = globalThis.DragEvent;
 
@@ -61,19 +41,12 @@ afterAll(() => {
 });
 
 function setupProgressBar(overrides: Partial<{ display: boolean }> = {}) {
-  const progressBar = {
-    display: false,
-    add: vi.fn(),
-    remove: vi.fn(),
-    ...overrides,
-  };
-  progressBarUseMock.mockReturnValue(progressBar);
-  return progressBar;
+  return createProgressBarMock(progressBarUseMock, overrides);
 }
 
 describe('DragAndDropHandler', () => {
   beforeEach(() => {
-    progressBarUseMock.mockReset();
+    resetMocks(progressBarUseMock);
     alertsDisplayMock.mockReset();
   });
 

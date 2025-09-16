@@ -1,25 +1,24 @@
 import '@testing-library/jest-dom/vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib/States/ProgressBarState.svelte', () => ({
-  ProgressBarState: {
-    use: vi.fn(),
-  },
-}));
-
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { ProgressBarState } from '$lib/States/ProgressBarState.svelte';
+import {
+  assignInputFiles,
+  createProgressBarMock,
+  resetMocks,
+  setupProgressBarMock,
+} from './testUtils';
 import ImagesPickerButton from './ImagesPickerButton.svelte';
 
-const useMock = ProgressBarState.use as unknown as ReturnType<typeof vi.fn>;
+const useMock = setupProgressBarMock();
 
 describe('ImagesPickerButton', () => {
   beforeEach(() => {
-    useMock.mockReset();
+    resetMocks(useMock);
   });
 
   it('renders label and configures accept/multiple attributes', () => {
-    useMock.mockReturnValue({ display: false });
+    createProgressBarMock(useMock);
 
     render(ImagesPickerButton, { props: { onFiles: vi.fn() } });
 
@@ -31,7 +30,7 @@ describe('ImagesPickerButton', () => {
   });
 
   it('disables the picker when progress bar is displayed', () => {
-    useMock.mockReturnValue({ display: true });
+    createProgressBarMock(useMock, { display: true });
 
     render(ImagesPickerButton, { props: { onFiles: vi.fn() } });
 
@@ -43,7 +42,7 @@ describe('ImagesPickerButton', () => {
   });
 
   it('forwards selected files via onFiles callback', async () => {
-    useMock.mockReturnValue({ display: false });
+    createProgressBarMock(useMock);
 
     const onFiles = vi.fn();
     render(ImagesPickerButton, { props: { onFiles } });
@@ -53,18 +52,7 @@ describe('ImagesPickerButton', () => {
     const fileA = new File(['a'], 'image-a.png', { type: 'image/png' });
     const fileB = new File(['b'], 'image-b.jpg', { type: 'image/jpeg' });
 
-    const filesArray = [fileA, fileB];
-    const fileList = {
-      0: fileA,
-      1: fileB,
-      length: filesArray.length,
-      item: (index: number) => filesArray[index] ?? null,
-    } as unknown as FileList;
-
-    Object.defineProperty(input, 'files', {
-      configurable: true,
-      value: fileList,
-    });
+    assignInputFiles(input, [fileA, fileB]);
 
     await fireEvent.change(input);
 

@@ -1,25 +1,24 @@
 import '@testing-library/jest-dom/vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib/States/ProgressBarState.svelte', () => ({
-  ProgressBarState: {
-    use: vi.fn(),
-  },
-}));
-
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { ProgressBarState } from '$lib/States/ProgressBarState.svelte';
+import {
+  assignInputFiles,
+  createProgressBarMock,
+  resetMocks,
+  setupProgressBarMock,
+} from './testUtils';
 import ZipArchivePickerButton from './ZipArchivePickerButton.svelte';
 
-const useMock = ProgressBarState.use as unknown as ReturnType<typeof vi.fn>;
+const useMock = setupProgressBarMock();
 
 describe('ZipArchivePickerButton', () => {
   beforeEach(() => {
-    useMock.mockReset();
+    resetMocks(useMock);
   });
 
   it('renders ZIP archive label and accepts only zip files', () => {
-    useMock.mockReturnValue({ display: false });
+    createProgressBarMock(useMock, { display: false });
 
     render(ZipArchivePickerButton, { props: { onFiles: vi.fn() } });
 
@@ -33,7 +32,7 @@ describe('ZipArchivePickerButton', () => {
   });
 
   it('disables the button while the progress bar is visible', () => {
-    useMock.mockReturnValue({ display: true });
+    createProgressBarMock(useMock, { display: true });
 
     render(ZipArchivePickerButton, { props: { onFiles: vi.fn() } });
 
@@ -45,19 +44,14 @@ describe('ZipArchivePickerButton', () => {
   });
 
   it('forwards the onFiles callback to the underlying input', async () => {
-    useMock.mockReturnValue({ display: false });
+    createProgressBarMock(useMock);
 
     const onFiles = vi.fn();
     render(ZipArchivePickerButton, { props: { onFiles } });
 
     const input = screen.getByLabelText('ZIP archive') as HTMLInputElement;
     const file = new File(['content'], 'sample.zip', { type: 'application/zip' });
-    const files = [file] as unknown as FileList;
-
-    Object.defineProperty(input, 'files', {
-      configurable: true,
-      value: files,
-    });
+    assignInputFiles(input, [file]);
 
     await fireEvent.change(input);
 

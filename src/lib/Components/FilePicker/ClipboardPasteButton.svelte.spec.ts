@@ -1,46 +1,28 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const browserFlag = { value: true };
+import {
+  createAlertsModule,
+  createBrowserModule,
+  createProgressBarMock,
+  resetMocks,
+  setupProgressBarMock,
+} from './testUtils';
 
-vi.mock('$app/environment', () => ({
-  get browser() {
-    return browserFlag.value;
-  },
+const { browserFlag, alertsDisplayMock } = vi.hoisted(() => ({
+  browserFlag: { value: true },
+  alertsDisplayMock: vi.fn(),
 }));
 
-vi.mock('$lib/States/ProgressBarState.svelte', () => ({
-  ProgressBarState: {
-    use: vi.fn(),
-  },
-}));
+vi.mock('$app/environment', () => createBrowserModule(browserFlag));
 
-const alertsDisplayMock = vi.fn();
-
-vi.mock('$lib/States/AlertsState.svelte', () => {
-  const AlertsLevel = {
-    Error: 'error',
-    Warning: 'warning',
-    Info: 'info',
-    Success: 'success',
-  } as const;
-
-  return {
-    AlertsState: {
-      use: vi.fn(() => ({
-        display: alertsDisplayMock,
-      })),
-    },
-    AlertsLevel,
-  };
-});
+vi.mock('$lib/States/AlertsState.svelte', () => createAlertsModule(alertsDisplayMock));
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
-import { ProgressBarState } from '$lib/States/ProgressBarState.svelte';
 import { AlertsLevel } from '$lib/States/AlertsState.svelte';
 import ClipboardPasteButton from './ClipboardPasteButton.svelte';
 
-const progressBarUseMock = ProgressBarState.use as unknown as ReturnType<typeof vi.fn>;
+const progressBarUseMock = setupProgressBarMock();
 
 let clipboardReadMock: ReturnType<typeof vi.fn>;
 const originalClipboard = (navigator as unknown as { clipboard?: Clipboard }).clipboard;
@@ -63,7 +45,7 @@ describe('ClipboardPasteButton', () => {
     clipboardReadMock = vi.fn();
     setClipboard({ read: clipboardReadMock } as unknown as Clipboard);
     alertsDisplayMock.mockReset();
-    progressBarUseMock.mockReset();
+    resetMocks(progressBarUseMock);
   });
 
   afterEach(() => {
@@ -75,14 +57,7 @@ describe('ClipboardPasteButton', () => {
   });
 
   function setupProgressBar(overrides: Partial<{ display: boolean }> = {}) {
-    const progressBar = {
-      display: false,
-      add: vi.fn(),
-      remove: vi.fn(),
-      ...overrides,
-    };
-    progressBarUseMock.mockReturnValue(progressBar);
-    return progressBar;
+    return createProgressBarMock(progressBarUseMock, overrides);
   }
 
   it('does not render when clipboard API is not supported', () => {
