@@ -86,7 +86,7 @@
     if (cfg.unwatermark === ConfigUnwatermark.ACQQ) {
       const wmResponse = await fetch(`/watermarks/acqq-${widths[0][0]}.png`);
       const blob = await wmResponse.blob();
-      const file = new File([blob], 'acqq-${widths[0][0]}.png', { type: 'image/png' });
+      const file = new File([blob], `acqq-${widths[0][0]}.png`, { type: 'image/png' });
       const watermarkImage = await ImageFile.fromFile(file);
       const unwatermark = new Unwatermarker({
         watermark: watermarkImage,
