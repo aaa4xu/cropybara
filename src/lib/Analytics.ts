@@ -15,7 +15,11 @@ export class Analytics {
   public static trackUpload(source: string, onFiles: (files: File[]) => void) {
     return (files: File[]) => {
       if (browser) {
-        posthog.capture('upload', { source, files });
+        posthog.capture('upload', {
+          source,
+          count: files.length,
+          types: [...new Set(files.map((f) => f.type || f.name.split('.').pop()))],
+        });
       }
 
       onFiles(files);
