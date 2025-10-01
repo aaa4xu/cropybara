@@ -37,7 +37,7 @@
         }
 
         onFiles(files);
-        await caches.delete('web-share-target-files');
+        await caches.delete(WebShareTarget.CacheName);
       }
     })();
   });
