@@ -30,6 +30,7 @@
   "ConfigScreen_Header": "Настройки",
   "ConfigScreen_ProjectName_Label": "Название проекта",
   "ConfigScreen_HeightLimit_Label": "Ограничение по высоте, px",
+  "ConfigScreen_HeightLimit_MinError": "Ограничение по высоте должно быть не меньше {min} px.",
   "ConfigScreen_CancelButton_Text": "Отмена",
   "ConfigScreen_SubmitButton_Text": "Нарезать",
   "ConfigScreen_ForceWithNotice_Checkbox_Label": "Изменить ширину всех изображений на {width}px",

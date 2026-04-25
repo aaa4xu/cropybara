@@ -2,7 +2,7 @@
   import type { ImageFile } from '$lib/ImageFile';
   import Scroll from '$lib/Components/Scroll.svelte';
   import { onMount } from 'svelte';
-  import { CutsState } from '$lib/States/CutsState.svelte';
+  import { CutsState, MIN_CUT_DISTANCE } from '$lib/States/CutsState.svelte';
   import Cuts from '$lib/Components/Cuts.svelte';
   import { Analytics } from '$lib/Analytics';
   import { m } from '$lib/paraglide/messages.js';
@@ -19,7 +19,7 @@
   const { images, limit, onCancel, onSubmit, cutsInit }: Props = $props();
   const height = $derived(images.reduce((acc, img) => acc + img.height, 0));
   /* svelte-ignore state_referenced_locally */
-  const cuts = new CutsState(50, limit, height, 1, cutsInit);
+  const cuts = new CutsState(MIN_CUT_DISTANCE, limit, height, 1, cutsInit);
   // Width of the image
   const imagesWidth = $derived(images.length > 0 ? images[0].width : 0);
 

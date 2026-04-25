@@ -14,9 +14,9 @@
     ConfigUnwatermark,
   } from '$lib/ConfigState';
   import { OnlineState } from '$lib/States/OnlineState.svelte';
-  import { AlertsState } from '$lib/States/AlertsState.svelte';
-  import { AlertsLevel } from '$lib/States/AlertsState.svelte.js';
+  import { AlertsLevel, AlertsState } from '$lib/States/AlertsState.svelte';
   import { getLocale } from '$lib/paraglide/runtime';
+  import { MIN_CUT_DISTANCE } from '$lib/States/CutsState.svelte';
 
   type Props = {
     widths: Array<[number, string[]]>;
@@ -29,12 +29,11 @@
   const progressBar = ProgressBarState.use();
   const online = OnlineState.use();
   const alerts = AlertsState.use();
+  const minHeightLimit = MIN_CUT_DISTANCE + 1;
   let name = $state(`cropybara-${Math.round(Date.now() / 1000)}`);
   let limit = $state(20_000);
   let forceWidth = $state(false);
   let unwatermark = $state(ConfigUnwatermark.Off);
-
-  $inspect(online.state);
 
   let denoiser: ConfigDenoiser = $state(ConfigDenoiser.Off);
 
@@ -51,6 +50,14 @@
 
   function handleSubmit(e: Event) {
     e.preventDefault();
+
+    if (!Number.isFinite(limit) || limit < minHeightLimit) {
+      alerts.display(
+        AlertsLevel.Error,
+        m.ConfigScreen_HeightLimit_MinError({ min: minHeightLimit }),
+      );
+      return;
+    }
 
     if (denoiser !== ConfigDenoiser.Off && !online.state) {
       alerts.display(AlertsLevel.Error, m.ConfigScreen_Denoiser_Alert_Offline());
@@ -87,7 +94,7 @@
     <LabeledInput bind:value={name} required autofocus
       >{m.ConfigScreen_ProjectName_Label()}</LabeledInput
     >
-    <LabeledInput bind:value={limit} required type="number" min="1" max="65000">
+    <LabeledInput bind:value={limit} required type="number" min={minHeightLimit} max="65000">
       {#snippet bottom()}
         {m.ConfigScreen_TotalSize()}
         <span class="accent-info">{widths[0][0].toLocaleString(getLocale())}</span>

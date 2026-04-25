@@ -1,3 +1,5 @@
+export const MIN_CUT_DISTANCE = 50;
+
 export class CutsState {
   public readonly minDistance: number;
   public readonly maxDistance: number;

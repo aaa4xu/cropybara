@@ -30,6 +30,7 @@
   "ConfigScreen_Header": "Settings",
   "ConfigScreen_ProjectName_Label": "Project name",
   "ConfigScreen_HeightLimit_Label": "Height limit, px",
+  "ConfigScreen_HeightLimit_MinError": "Height limit must be at least {min}px.",
   "ConfigScreen_CancelButton_Text": "Cancel",
   "ConfigScreen_SubmitButton_Text": "Process",
   "ConfigScreen_ForceWithNotice_Checkbox_Label": "Resize all images to {width}px width",
