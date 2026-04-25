@@ -49,6 +49,7 @@
   "ConfigScreen_Denoiser_Select_Bottom_Unjpeg": "облачное решение для удаления артефактов компрессии изображений. На время альфа-тестирования доступ бесплатен и не ограничен, но, в зависимости от нагрузки, на обработку главы может уйти несколько минут.",
   "EditorScreen_Title": "Cropybara — Редактор",
   "ConfigScreen_DenoiserError": "Не удалось убрать шумы с {name}",
+  "ConfigScreen_DenoiserRuntimeError": "Не удалось запустить браузерный денойзер: {error}. Откройте Cropybara в Safari или Chrome либо отключите удаление артефактов сжатия.",
   "ConfigScreen_UnwatermarkError": "Не удалось загрузить ватермарку: {error}",
   "ConfigScreen_DenoiserInProgress": "Денойзер еще обрабатывает изображения. Сохранение станет доступно, как только он закончит.",
   "ConfigScreen_Denoiser_Alert_Offline": "Денойзеры не доступны в оффлайн режиме. Отключите денойзер или повторите запрос после появления сети.",

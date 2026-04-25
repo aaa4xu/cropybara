@@ -25,6 +25,7 @@
   import { browser } from '$app/environment';
   import type { Denoiser } from '$lib/Denoiser/Denoiser';
   import { Unwatermarker } from '$lib/Denoiser/Unwatermarker';
+  import { isONNXRuntimeLoadError } from '$lib/Denoiser/errors';
   import { DOM_EXCEPTION_NAMES, hasDomExceptionName } from '$lib/utils/domException';
   import { loadAcqqWatermark } from '$lib/Watermarks/loadAcqqWatermark';
 
@@ -55,6 +56,20 @@
     images = [];
     cutsInit = [];
     config = null;
+  }
+
+  function displayDenoiserError(imageName: string, err: unknown) {
+    if (!imageName || isONNXRuntimeLoadError(err)) {
+      alerts.display(
+        AlertsLevel.Error,
+        m.ConfigScreen_DenoiserRuntimeError({
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+      return;
+    }
+
+    alerts.display(AlertsLevel.Error, m.ConfigScreen_DenoiserError({ name: imageName }));
   }
 
   async function handleConfig(cfg: ConfigState) {
@@ -135,29 +150,43 @@
     }
 
     if (cfg.denoiser === ConfigDenoiser.ManhwaNullONNX) {
-      const { ONNXDenoiser } = await import('$lib/Denoiser/ONNXDenoiser');
-      denoiser = new ONNXDenoiser('/models/1x_manhwa_null/1x_manhwa_null.with_runtime_opt.ort');
+      try {
+        const { ONNXDenoiser } = await import('$lib/Denoiser/ONNXDenoiser');
+        denoiser = new ONNXDenoiser('/models/1x_manhwa_null/1x_manhwa_null.with_runtime_opt.ort');
+      } catch (err) {
+        console.error('Failed to initialize ONNX denoiser', err);
+        displayDenoiserError('', err);
+      }
     }
 
     if (denoiser) {
       const state = $state({ total: images.length, ready: 0 });
       const task = () => state;
       progressBar.add(task);
+      let runtimeErrorDisplayed = false;
       denoiserPromise = Promise.all(
         images.map(async (image, index) => {
           try {
             images[index] = await denoiser.process(image);
           } catch (err) {
             console.error(`Failed to process image ${image.name}`, err);
-            alerts.display(AlertsLevel.Error, m.ConfigScreen_DenoiserError({ name: image.name }));
+            if (!runtimeErrorDisplayed || !isONNXRuntimeLoadError(err)) {
+              displayDenoiserError(image.name, err);
+            }
+            runtimeErrorDisplayed ||= isONNXRuntimeLoadError(err);
           } finally {
             state.ready++;
           }
         }),
-      ).finally(() => {
-        progressBar.remove(task);
-        denoiserPromise = null;
-      });
+      )
+        .catch((err) => {
+          console.error('Denoiser failed', err);
+          displayDenoiserError('', err);
+        })
+        .finally(() => {
+          progressBar.remove(task);
+          denoiserPromise = null;
+        });
     }
 
     if (cfg.detector === ConfigDetector.PixelComparison) {
