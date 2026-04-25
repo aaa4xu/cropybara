@@ -49,6 +49,7 @@
   "ConfigScreen_Denoiser_Select_Bottom_Unjpeg": "cloud-based solution for removing image compression artifacts. During the alpha testing period, access is free and unlimited, but depending on the load, processing a chapter may take several minutes.",
   "EditorScreen_Title": "Cropybara — Editor",
   "ConfigScreen_DenoiserError": "Failed to remove noise from {name}",
+  "ConfigScreen_UnwatermarkError": "Failed to load watermark: {error}",
   "ConfigScreen_DenoiserInProgress": "Denoiser is still processing images. Saving will become available as soon as it finishes.",
   "ConfigScreen_Denoiser_Alert_Offline": "Denoisers are not available in offline mode. Disable the denoiser or try again after the network connection is restored.",
   "ConfigScreen_TotalSize": "Total size:",

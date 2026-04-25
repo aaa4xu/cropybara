@@ -26,6 +26,7 @@
   import type { Denoiser } from '$lib/Denoiser/Denoiser';
   import { Unwatermarker } from '$lib/Denoiser/Unwatermarker';
   import { DOM_EXCEPTION_NAMES, hasDomExceptionName } from '$lib/utils/domException';
+  import { loadAcqqWatermark } from '$lib/Watermarks/loadAcqqWatermark';
 
   let images: ImageFile[] = $state([]);
   let config: ConfigState | null = $state(null);
@@ -84,10 +85,20 @@
     }
 
     if (cfg.unwatermark === ConfigUnwatermark.ACQQ) {
-      const wmResponse = await fetch(`/watermarks/acqq-${widths[0][0]}.png`);
-      const blob = await wmResponse.blob();
-      const file = new File([blob], `acqq-${widths[0][0]}.png`, { type: 'image/png' });
-      const watermarkImage = await ImageFile.fromFile(file);
+      let watermarkImage: ImageFile;
+      try {
+        watermarkImage = await loadAcqqWatermark(widths[0][0]);
+      } catch (err) {
+        console.error('Failed to load watermark', err);
+        alerts.display(
+          AlertsLevel.Error,
+          m.ConfigScreen_UnwatermarkError({
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
+        return;
+      }
+
       const unwatermark = new Unwatermarker({
         watermark: watermarkImage,
         left: -220,
