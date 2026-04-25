@@ -1,7 +1,14 @@
 export class ImageFile extends File {
   public static async fromFile(file: File): Promise<ImageFile> {
     const image = await this.loadImageFromFile(file);
-    return new ImageFile(file, image.width, image.height);
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      throw new Error(`Image has invalid dimensions: ${width}x${height}.`);
+    }
+
+    return new ImageFile(file, width, height);
   }
 
   protected static async loadImageFromFile(file: File) {

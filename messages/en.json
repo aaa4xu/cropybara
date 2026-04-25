@@ -33,6 +33,7 @@
   "ConfigScreen_HeightLimit_MinError": "Height limit must be at least {min}px.",
   "ConfigScreen_CancelButton_Text": "Cancel",
   "ConfigScreen_SubmitButton_Text": "Process",
+  "ConfigScreen_ResizeError": "Failed to resize image \"{name}\": {error}",
   "ConfigScreen_ForceWithNotice_Checkbox_Label": "Resize all images to {width}px width",
   "ConfigScreen_ForceWithNotice_Description": "Not all images have the same width! Most images ({length}) have a width of {width}px, however there are exceptions",
   "ConfigScreen_ForceWithNotice_Exception": "{length} with width {width}px",

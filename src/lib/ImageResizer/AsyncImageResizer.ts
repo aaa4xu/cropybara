@@ -2,6 +2,31 @@ import { ImageFile } from '$lib/ImageFile';
 import { Queue } from '$lib/Queue';
 import type { ImageResizer } from './ImageResizer';
 
+export function calculateResizedImageSize(
+  image: Pick<ImageFile, 'name' | 'width' | 'height'>,
+  width: number,
+): { width: number; height: number } {
+  if (!Number.isFinite(width) || width <= 0) {
+    throw new Error(`Target width must be a positive number, got ${width}.`);
+  }
+
+  if (
+    !Number.isFinite(image.width) ||
+    !Number.isFinite(image.height) ||
+    image.width <= 0 ||
+    image.height <= 0
+  ) {
+    throw new Error(
+      `Image "${image.name}" has invalid dimensions: ${image.width}x${image.height}.`,
+    );
+  }
+
+  return {
+    width,
+    height: Math.max(1, Math.round((width * image.height) / image.width)),
+  };
+}
+
 export class AsyncImageResizer implements ImageResizer {
   private readonly queue = new Queue([new OffscreenCanvas(1, 1)]);
 
@@ -15,17 +40,14 @@ export class AsyncImageResizer implements ImageResizer {
 
         const source = await image.image();
         const type = 'image/png';
-
-        // Calculate new height maintaining aspect ratio
-        const aspectRatio = source.naturalHeight / source.naturalWidth;
-        const height = Math.round(width * aspectRatio);
+        const size = calculateResizedImageSize(image, width);
 
         // Set canvas dimensions
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = size.width;
+        canvas.height = size.height;
 
         // Draw the resized image onto the canvas
-        ctx.drawImage(source, 0, 0, width, height);
+        ctx.drawImage(source, 0, 0, size.width, size.height);
 
         // Convert canvas to blob
         const blob = await canvas.convertToBlob({ type });
@@ -41,7 +63,7 @@ export class AsyncImageResizer implements ImageResizer {
         );
 
         // Create a new ImageFile from the resized file
-        return new ImageFile(resizedFile, width, height);
+        return new ImageFile(resizedFile, size.width, size.height);
       } finally {
         canvas.width = 1;
         canvas.height = 1;

@@ -33,6 +33,7 @@
   "ConfigScreen_HeightLimit_MinError": "Ограничение по высоте должно быть не меньше {min} px.",
   "ConfigScreen_CancelButton_Text": "Отмена",
   "ConfigScreen_SubmitButton_Text": "Нарезать",
+  "ConfigScreen_ResizeError": "Не удалось изменить размер изображения \"{name}\": {error}",
   "ConfigScreen_ForceWithNotice_Checkbox_Label": "Изменить ширину всех изображений на {width}px",
   "ConfigScreen_ForceWithNotice_Description": "Не все изображения одинаковой ширины! Большинство изображений ({length}) имеют ширину {width}px, однако есть исключения",
   "ConfigScreen_ForceWithNotice_Exception": "{length} с шириной {width}px",

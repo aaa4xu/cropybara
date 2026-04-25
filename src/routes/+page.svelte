@@ -78,6 +78,7 @@
     if (outliers.length > 0) {
       const resizer = new AsyncImageResizer();
       const controller = new AbortController();
+      let resizeErrorDisplayed = false;
 
       const state = $state({ total: outliers.length, ready: 0 });
       const task = () => state;
@@ -89,11 +90,27 @@
             try {
               const index = images.indexOf(image);
               images[index] = await resizer.resize(image, widths[0][0], controller.signal);
+            } catch (err) {
+              if (!resizeErrorDisplayed) {
+                console.error(`Failed to resize image ${image.name}`, err);
+                alerts.display(
+                  AlertsLevel.Error,
+                  m.ConfigScreen_ResizeError({
+                    name: image.name,
+                    error: err instanceof Error ? err.message : String(err),
+                  }),
+                );
+                resizeErrorDisplayed = true;
+              }
+              throw err;
             } finally {
               state.ready++;
             }
           }),
         );
+      } catch {
+        controller.abort();
+        return;
       } finally {
         progressBar.remove(task);
       }
