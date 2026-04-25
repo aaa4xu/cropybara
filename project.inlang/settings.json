@@ -8,6 +8,6 @@
     "pathPattern": "./messages/{locale}.json"
   },
   "baseLocale": "en",
-  "locales": ["en", "ru"],
+  "locales": ["en", "ru", "vi"],
   "telemetry": "off"
 }

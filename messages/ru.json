@@ -2,6 +2,7 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "LocaleSwitcher_Locale_ru": "Русская версия",
   "LocaleSwitcher_Locale_en": "English version",
+  "LocaleSwitcher_Locale_vi": "Phiên bản tiếng Việt",
   "Picker_ImagesPickerButton_Text": "Изображения",
   "Picker_DirectoryPickerButton_Text": "Папка",
   "Picker_ZipArchivePickerButton_Text": "ZIP архив",
