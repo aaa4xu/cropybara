@@ -15,7 +15,9 @@ describe('Queue', () => {
       });
 
       const start = Date.now();
-      const completion = Promise.all(tasks.map((task) => queue.enqueue(task, AbortSignal.timeout(1000))));
+      const completion = Promise.all(
+        tasks.map((task) => queue.enqueue(task, AbortSignal.timeout(1000))),
+      );
 
       await vi.advanceTimersByTimeAsync(100);
       await vi.advanceTimersByTimeAsync(100);

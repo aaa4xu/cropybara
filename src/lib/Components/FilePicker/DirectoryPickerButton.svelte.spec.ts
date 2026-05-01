@@ -33,7 +33,11 @@ function enableDirectorySupport() {
 
 function resetDirectorySupport() {
   if (originalDirectoryDescriptor) {
-    Object.defineProperty(HTMLInputElement.prototype, 'webkitdirectory', originalDirectoryDescriptor);
+    Object.defineProperty(
+      HTMLInputElement.prototype,
+      'webkitdirectory',
+      originalDirectoryDescriptor,
+    );
   } else {
     Reflect.deleteProperty(HTMLInputElement.prototype, 'webkitdirectory');
   }

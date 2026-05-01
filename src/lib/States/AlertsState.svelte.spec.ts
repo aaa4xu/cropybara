@@ -23,8 +23,16 @@ describe('AlertsState', () => {
     state.display(AlertsLevel.Warning, 'Second message', 1000);
 
     expect(state.alerts).toHaveLength(2);
-    expect(state.alerts[0]).toMatchObject({ id: 0, level: AlertsLevel.Info, message: 'First message' });
-    expect(state.alerts[1]).toMatchObject({ id: 1, level: AlertsLevel.Warning, message: 'Second message' });
+    expect(state.alerts[0]).toMatchObject({
+      id: 0,
+      level: AlertsLevel.Info,
+      message: 'First message',
+    });
+    expect(state.alerts[1]).toMatchObject({
+      id: 1,
+      level: AlertsLevel.Warning,
+      message: 'Second message',
+    });
   });
 
   it('removes alerts by identifier', () => {

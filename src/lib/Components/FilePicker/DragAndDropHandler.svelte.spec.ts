@@ -1,7 +1,12 @@
 import '@testing-library/jest-dom/vitest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createAlertsModule, createProgressBarMock, resetMocks, setupProgressBarMock } from './testUtils';
+import {
+  createAlertsModule,
+  createProgressBarMock,
+  resetMocks,
+  setupProgressBarMock,
+} from './testUtils';
 
 const { alertsDisplayMock } = vi.hoisted(() => ({
   alertsDisplayMock: vi.fn(),
@@ -28,7 +33,8 @@ beforeAll(() => {
       }
     }
 
-    (globalThis as unknown as { DragEvent: typeof Event }).DragEvent = DragEventPolyfill as unknown as typeof DragEvent;
+    (globalThis as unknown as { DragEvent: typeof Event }).DragEvent =
+      DragEventPolyfill as unknown as typeof DragEvent;
   }
 });
 

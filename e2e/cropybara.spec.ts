@@ -34,10 +34,7 @@ function fixturePath(name: string) {
 async function uploadSampleImages(page: Page) {
   const imagesInput = page.getByLabel('Images');
   await expect(imagesInput).toBeVisible();
-  await imagesInput.setInputFiles([
-    fixturePath('sample-1.png'),
-    fixturePath('sample-2.png'),
-  ]);
+  await imagesInput.setInputFiles([fixturePath('sample-1.png'), fixturePath('sample-2.png')]);
 
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 }
@@ -60,7 +57,9 @@ async function mockZipDownload(page: Page) {
         return new Uint8Array(value);
       }
       if (ArrayBuffer.isView(value)) {
-        return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
+        return new Uint8Array(
+          value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength),
+        );
       }
       if (value instanceof Blob) {
         const buffer = await value.arrayBuffer();
@@ -171,21 +170,20 @@ test('should export a zip archive with processed slices', async ({ page }) => {
   await saveButton.click();
   await waitForZip;
 
-  const payload = await page.evaluate<
-    | { base64: string; suggestedName: string | null }
-    | null
-  >(() => {
-    const saved = window.__cropybaraSavedZips as
-      | Array<{ closed?: boolean; base64?: string; options?: { suggestedName?: string | null } }>
-      | undefined;
-    if (!saved || saved.length === 0) return null;
-    const last = saved[saved.length - 1];
-    if (!last || !last.base64) return null;
-    return {
-      base64: last.base64,
-      suggestedName: last.options?.suggestedName ?? null,
-    };
-  });
+  const payload = await page.evaluate<{ base64: string; suggestedName: string | null } | null>(
+    () => {
+      const saved = window.__cropybaraSavedZips as
+        | Array<{ closed?: boolean; base64?: string; options?: { suggestedName?: string | null } }>
+        | undefined;
+      if (!saved || saved.length === 0) return null;
+      const last = saved[saved.length - 1];
+      if (!last || !last.base64) return null;
+      return {
+        base64: last.base64,
+        suggestedName: last.options?.suggestedName ?? null,
+      };
+    },
+  );
 
   expect(payload).not.toBeNull();
   const { base64, suggestedName } = payload!;
@@ -201,13 +199,6 @@ test('should export a zip archive with processed slices', async ({ page }) => {
   const pngBytes = await pngFile!.async('uint8array');
   expect(pngBytes.length).toBeGreaterThan(0);
   expect(Array.from(pngBytes.slice(0, 8))).toEqual([
-    0x89,
-    0x50,
-    0x4e,
-    0x47,
-    0x0d,
-    0x0a,
-    0x1a,
-    0x0a,
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   ]);
 });

@@ -13,7 +13,10 @@
 
   function displayEntryError(entryName: string, err: unknown) {
     if (hasDomExceptionName(err, DOM_EXCEPTION_NAMES.NotFound)) {
-      alerts.display(AlertsLevel.Error, m.Picker_DragAndDropHandler_EntryUnavailable({ name: entryName }));
+      alerts.display(
+        AlertsLevel.Error,
+        m.Picker_DragAndDropHandler_EntryUnavailable({ name: entryName }),
+      );
       return;
     }
 
