@@ -1,4 +1,5 @@
 import type { ImagesSaver } from './ImagesSaver';
+import { StoredZipWriter, WritableStreamSink } from '$lib/ZipWriter';
 
 export async function writeReadableStreamToWritable(
   readableStream: ReadableStream<Uint8Array>,
@@ -41,28 +42,15 @@ export class ZipArchiveWithStreamsaverImageSaver implements ImagesSaver {
     images: AsyncGenerator<File>,
     onprogress?: () => void,
   ): Promise<void> {
-    const [{ default: streamSaver }, { default: JSZip }] = await Promise.all([
-      import('streamsaver'),
-      import('jszip'),
-    ]);
+    const { default: streamSaver } = await import('streamsaver');
+    const fileStream = streamSaver.createWriteStream(name + '.zip');
+    const sink = new WritableStreamSink(fileStream);
 
-    const zip = new JSZip();
-
-    for await (const file of images) {
-      zip.file(file.name, file.bytes());
-      onprogress?.();
+    try {
+      await new StoredZipWriter(sink).write(images, onprogress);
+    } catch (error) {
+      await sink.abort(error).catch(() => undefined);
+      throw error;
     }
-
-    const content = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
-
-    const fileStream = streamSaver.createWriteStream(name + '.zip', {
-      size: content.size,
-    });
-
-    const readableStream = content.stream();
-
-    await writeReadableStreamToWritable(readableStream, fileStream);
-    console.log('done writing');
-    onprogress?.();
   }
 }
