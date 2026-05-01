@@ -15,4 +15,23 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-// add more mocks here if you need them
+const localStorageMock: Storage = {
+  get length() {
+    return 0;
+  },
+  clear: vi.fn(),
+  getItem: vi.fn(() => null),
+  key: vi.fn(() => null),
+  removeItem: vi.fn(),
+  setItem: vi.fn(),
+};
+
+Object.defineProperty(window, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
