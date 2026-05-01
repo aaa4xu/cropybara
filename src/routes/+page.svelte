@@ -28,6 +28,7 @@
   import { isONNXRuntimeLoadError } from '$lib/Denoiser/errors';
   import { DOM_EXCEPTION_NAMES, hasDomExceptionName } from '$lib/utils/domException';
   import { loadAcqqWatermark } from '$lib/Watermarks/loadAcqqWatermark';
+  import { onDestroy } from 'svelte';
 
   let images: ImageFile[] = $state([]);
   let config: ConfigState | null = $state(null);
@@ -52,7 +53,14 @@
   );
   let height = $derived(images.reduce((acc, image) => acc + image.height, 0));
 
+  function releaseImages(items: Iterable<ImageFile>) {
+    for (const image of items) {
+      image.releaseImage();
+    }
+  }
+
   function handleCancel() {
+    releaseImages(images);
     images = [];
     cutsInit = [];
     config = null;
@@ -89,7 +97,9 @@
           outliers.map(async (image) => {
             try {
               const index = images.indexOf(image);
-              images[index] = await resizer.resize(image, widths[0][0], controller.signal);
+              const resized = await resizer.resize(image, widths[0][0], controller.signal);
+              images[index] = resized;
+              image.releaseImage();
             } catch (err) {
               if (!resizeErrorDisplayed) {
                 console.error(`Failed to resize image ${image.name}`, err);
@@ -145,7 +155,9 @@
       await Promise.all(
         images.map(async (image, index) => {
           try {
-            images[index] = await unwatermark.process(image);
+            const processed = await unwatermark.process(image);
+            images[index] = processed;
+            image.releaseImage();
           } catch (err) {
             console.error(`Failed to process image ${image.name}`, err);
             alerts.display(AlertsLevel.Error, m.ConfigScreen_DenoiserError({ name: image.name }));
@@ -155,6 +167,7 @@
         }),
       ).finally(() => {
         progressBar.remove(task);
+        watermarkImage.releaseImage();
       });
     }
 
@@ -184,7 +197,9 @@
       denoiserPromise = Promise.all(
         images.map(async (image, index) => {
           try {
-            images[index] = await denoiser.process(image);
+            const processed = await denoiser.process(image);
+            images[index] = processed;
+            image.releaseImage();
           } catch (err) {
             console.error(`Failed to process image ${image.name}`, err);
             if (!runtimeErrorDisplayed || !isONNXRuntimeLoadError(err)) {
@@ -281,6 +296,10 @@
       progressBar.remove(getter);
     }
   }
+
+  onDestroy(() => {
+    releaseImages(images);
+  });
 </script>
 
 {#if images.length === 0}

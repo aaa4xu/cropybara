@@ -1,17 +1,37 @@
+export type ImageFileImage = CanvasImageSource & {
+  width: number;
+  height: number;
+  close?: () => void;
+};
+
 export class ImageFile extends File {
+  private imagePromise?: Promise<ImageFileImage>;
+
   public static async fromFile(file: File): Promise<ImageFile> {
-    const image = await this.loadImageFromFile(file);
-    const width = image.naturalWidth || image.width;
-    const height = image.naturalHeight || image.height;
+    const image = await this.decodeFile(file);
+    try {
+      const width = 'naturalWidth' in image ? image.naturalWidth || image.width : image.width;
+      const height = 'naturalHeight' in image ? image.naturalHeight || image.height : image.height;
 
-    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-      throw new Error(`Image has invalid dimensions: ${width}x${height}.`);
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+        throw new Error(`Image has invalid dimensions: ${width}x${height}.`);
+      }
+
+      return new ImageFile(file, width, height);
+    } finally {
+      image.close?.();
     }
-
-    return new ImageFile(file, width, height);
   }
 
-  protected static async loadImageFromFile(file: File) {
+  protected static async decodeFile(file: File): Promise<ImageFileImage> {
+    if (typeof createImageBitmap !== 'undefined') {
+      return createImageBitmap(file);
+    }
+
+    return ImageFile.loadImageFromFile(file);
+  }
+
+  private static async loadImageFromFile(file: File): Promise<HTMLImageElement> {
     const url = URL.createObjectURL(file);
     try {
       return await this.loadImageFromUrl(url);
@@ -60,7 +80,22 @@ export class ImageFile extends File {
     });
   }
 
-  public async image(): Promise<HTMLImageElement> {
-    return ImageFile.loadImageFromFile(this);
+  protected decodeImage(): Promise<ImageFileImage> {
+    return ImageFile.decodeFile(this);
+  }
+
+  public image(): Promise<ImageFileImage> {
+    this.imagePromise ??= this.decodeImage().catch((err) => {
+      this.imagePromise = undefined;
+      throw err;
+    });
+
+    return this.imagePromise;
+  }
+
+  public releaseImage(): void {
+    const image = this.imagePromise;
+    this.imagePromise = undefined;
+    void image?.then((source) => source.close?.()).catch(() => undefined);
   }
 }

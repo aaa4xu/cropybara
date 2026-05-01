@@ -10,7 +10,6 @@ export class RowPixelProvider {
   private stripGlobalOffsetY: number = -1; // Global Y-coordinate of the top of the current "strip"
   private canvasHeight: number = 0; // Height of the current "strip" on the canvas
   private isStripLoaded: boolean = false;
-  private imageCache = new Map<number, Promise<HTMLImageElement>>();
 
   public constructor(private images: ImageFile[]) {
     this.imageStartRows = [];
@@ -145,8 +144,6 @@ export class RowPixelProvider {
     // If totalHeight < canvasHeight, then stripGlobalOffsetY should be 0.
     const maxPossibleStripOffsetY = Math.max(0, this.totalHeight - this.canvasHeight);
     this.stripGlobalOffsetY = Math.min(this.stripGlobalOffsetY, maxPossibleStripOffsetY);
-    this.pruneImageCache();
-
     this.ctx.clearRect(0, 0, this.images[0].width, this.canvasHeight);
 
     for (let i = 0; i < this.images.length; i++) {
@@ -159,7 +156,7 @@ export class RowPixelProvider {
         imgGlobalEndY > this.stripGlobalOffsetY &&
         imgGlobalStartY < this.stripGlobalOffsetY + this.canvasHeight
       ) {
-        const htmlImg = await this.getImageElement(i);
+        const image = await imgFile.image();
 
         // Source region from the original image
         const sX = 0;
@@ -192,31 +189,12 @@ export class RowPixelProvider {
           sHeight = Math.max(0, Math.min(sHeight, imgFile.height - sY));
 
           if (sHeight > 0) {
-            this.ctx.drawImage(htmlImg, sX, sY, sWidth, sHeight, dX, dY, dWidth, dHeight);
+            this.ctx.drawImage(image, sX, sY, sWidth, sHeight, dX, dY, dWidth, dHeight);
           }
         }
       }
     }
 
     this.isStripLoaded = true;
-  }
-
-  private getImageElement(index: number): Promise<HTMLImageElement> {
-    let image = this.imageCache.get(index);
-    if (!image) {
-      image = this.images[index].image();
-      this.imageCache.set(index, image);
-    }
-
-    return image;
-  }
-
-  private pruneImageCache() {
-    for (const index of this.imageCache.keys()) {
-      const imageEndY = this.imageStartRows[index] + this.images[index].height;
-      if (imageEndY <= this.stripGlobalOffsetY) {
-        this.imageCache.delete(index);
-      }
-    }
   }
 }
