@@ -123,7 +123,6 @@ export class ONNXDenoiser implements Denoiser {
 
     const height = dims[2];
     const width = dims[3];
-    const channels = dims[1]; // Should be 3
 
     const numPixels = width * height;
     // Create an array for pixels in RGBA format

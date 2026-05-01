@@ -20,16 +20,19 @@
     const touch = e.touches.item(0);
     if (!touch) return;
 
-    wrapperElement &&
+    if (wrapperElement) {
       wrapperElement.addEventListener('touchmove', moveCutWithTouch, {
         passive: false,
       });
+    }
 
     state.startMove(index, touch.clientY);
   }
 
   function finishMove() {
-    wrapperElement && wrapperElement.removeEventListener('touchmove', moveCutWithTouch);
+    if (wrapperElement) {
+      wrapperElement.removeEventListener('touchmove', moveCutWithTouch);
+    }
     state.finishMove();
   }
 

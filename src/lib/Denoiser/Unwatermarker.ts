@@ -180,9 +180,9 @@ export class Unwatermarker implements Denoiser {
           const wm_g = wmData[i_offset + 1];
           const wm_b = wmData[i_offset + 2];
 
-          let r_new = current_alpha_img * orig_r + current_alpha_wm * wm_r;
-          let g_new = current_alpha_img * orig_g + current_alpha_wm * wm_g;
-          let b_new = current_alpha_img * orig_b + current_alpha_wm * wm_b;
+          const r_new = current_alpha_img * orig_r + current_alpha_wm * wm_r;
+          const g_new = current_alpha_img * orig_g + current_alpha_wm * wm_g;
+          const b_new = current_alpha_img * orig_b + current_alpha_wm * wm_b;
 
           imgData[j_offset] = Math.round(r_new);
           imgData[j_offset + 1] = Math.round(g_new);

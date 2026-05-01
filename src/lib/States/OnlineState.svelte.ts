@@ -19,11 +19,11 @@ export class OnlineState {
   public constructor() {
     if (!browser) return;
 
-    window.addEventListener('offline', (e) => {
+    window.addEventListener('offline', () => {
       this.#state = false;
     });
 
-    window.addEventListener('online', (e) => {
+    window.addEventListener('online', () => {
       this.#state = true;
     });
   }

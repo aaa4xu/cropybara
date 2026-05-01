@@ -2,7 +2,7 @@
  * Implements a queue that processes tasks (consumers) concurrently,
  * using a pool of provided resources.
  */
-export class Queue<Resource> implements Queue<Resource> {
+export class Queue<Resource> implements QueueInterface<Resource> {
   private readonly busyResources = new Set<Resource>();
   private readonly pendingTasks: Array<{
     task: QueueConsumer<Resource, unknown>;
@@ -117,7 +117,7 @@ export class Queue<Resource> implements Queue<Resource> {
 }
 
 // Define the interfaces and types for the queue system
-export interface Queue<Resource> {
+export interface QueueInterface<Resource> {
   enqueue<T>(task: QueueConsumer<Resource, T>, signal: AbortSignal): Promise<T>;
 }
 

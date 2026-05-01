@@ -1,12 +1,22 @@
 <script lang="ts">
   import Button from '$lib/Components/Button.svelte';
 
-  let installPrompt: Event | null = $state(null);
+  // https://web.dev/learn/pwa/installation-prompt#gathering_analytics
+  type BeforeInstallPromptEvent = Event & {
+    prompt(): void;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+  };
+
+  type WindowWithDeferredInstallPrompt = Window & {
+    deferredInstallPrompt?: BeforeInstallPromptEvent | null;
+  };
+
+  let installPrompt: BeforeInstallPromptEvent | null = $state(null);
 
   $effect(() => {
     if (installPrompt) return;
 
-    const w = window as any;
+    const w = window as WindowWithDeferredInstallPrompt;
 
     if (w.deferredInstallPrompt instanceof Event) {
       installPrompt = w.deferredInstallPrompt;
@@ -27,11 +37,9 @@
   async function install() {
     if (!installPrompt) return;
 
-    // @ts-expect-error https://web.dev/learn/pwa/installation-prompt#gathering_analytics
     installPrompt.prompt();
 
     // Find out whether the user confirmed the installation or not
-    // @ts-expect-error https://web.dev/learn/pwa/installation-prompt#gathering_analytics
     const { outcome } = await installPrompt.userChoice;
     // The deferredPrompt can only be used once.
     installPrompt = null;
