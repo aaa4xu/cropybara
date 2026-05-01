@@ -27,7 +27,7 @@
     </svg>
   </button>
 
-  <div>
+  <div class="editor-control-value">
     {current}&nbsp;/&nbsp;{total}
   </div>
 

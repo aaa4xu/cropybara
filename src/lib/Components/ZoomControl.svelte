@@ -10,7 +10,7 @@
 </script>
 
 <section>
-  <button class="prev" aria-label="Zoom out" onclick={onZoomOut}>
+  <button type="button" class="prev" aria-label="Zoom out" onclick={onZoomOut}>
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="16"
@@ -30,9 +30,11 @@
     </svg>
   </button>
 
-  <div onclick={onReset}>{zoom < 0.1 ? (zoom * 100).toFixed(1) : (zoom * 100).toFixed(0)}%</div>
+  <button type="button" class="editor-control-value" aria-label="Reset zoom" onclick={onReset}>
+    {zoom < 0.1 ? (zoom * 100).toFixed(1) : (zoom * 100).toFixed(0)}%
+  </button>
 
-  <button class="next" aria-label="Zoom in" onclick={onZoomIn}>
+  <button type="button" class="next" aria-label="Zoom in" onclick={onZoomIn}>
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="16"

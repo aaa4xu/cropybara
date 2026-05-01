@@ -121,15 +121,19 @@
     color: black;
   }
 
-  div {
+  .editor-control-value {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: auto;
+    min-width: 4.5rem;
     padding: 0 1em;
     height: 2.5rem;
     border: 2px solid var(--color-accent);
     border-left: 0;
     border-right: 0;
+    border-radius: 0;
     box-sizing: border-box;
+    font: inherit;
   }
 }
