@@ -1,7 +1,222 @@
 import { expect, test, type Page } from '@playwright/test';
+import { createCanvas, loadImage } from 'canvas';
 import JSZip from 'jszip';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+test('should display link to russian version on the main page', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Русская версия')).toBeVisible();
+});
+
+test('should reject non-image files and keep the upload screen open', async ({ page }) => {
+  await page.goto('/');
+
+  await uploadImages(page, [
+    {
+      name: 'notes.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('not an image'),
+    },
+  ]);
+
+  await expect(page.getByText('File "notes.txt" is not an image but text/plain.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Select images' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Settings' })).toHaveCount(0);
+});
+
+test('should allow uploading images and configure manual slicing', async ({ page }) => {
+  await page.goto('/');
+  await uploadSampleImages(page);
+
+  await expect(page.getByLabel('Project name')).toHaveValue(/^cropybara-\d+$/);
+  await expect(page.getByLabel('Height limit, px')).toHaveValue('20000');
+  await expect(page.getByText(/Total size:\s*6\s*x\s*24 px/)).toBeVisible();
+  await expect(page.getByLabel('Compression artifact removal')).toHaveValue('Off');
+  await expect(page.getByLabel('Unwatermark')).toHaveValue('Off');
+  await expect(page.getByLabel('Detector type')).toHaveValue('PixelComparison');
+
+  const heightLimitInput = page.getByLabel('Height limit, px');
+  await heightLimitInput.fill('50');
+  await page.getByRole('button', { name: 'Process' }).click();
+
+  expect(
+    await heightLimitInput.evaluate((input) => (input as HTMLInputElement).validity.rangeUnderflow),
+  ).toBe(true);
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+
+  await heightLimitInput.fill('20000');
+  await page.getByLabel('Detector type').selectOption('Manual');
+  await expect(page.getByLabel('Object detection sensitivity, %')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Process' }).click();
+
+  await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'sample-1.png' })).toBeVisible();
+});
+
+test('should allow zooming and dragging manual cuts', async ({ page }) => {
+  await page.goto('/');
+  await uploadGeneratedChapter(page);
+
+  await page.getByLabel('Project name').fill('keyboard-cuts');
+  await page.getByLabel('Height limit, px').fill('120');
+  await page.getByLabel('Detector type').selectOption('Manual');
+  await page.getByRole('button', { name: 'Process' }).click();
+
+  await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
+  await expect(page.locator('.cut')).toHaveCount(4);
+
+  const firstCut = page.locator('.cut').first();
+  const firstCutBox = await firstCut.boundingBox();
+  expect(firstCutBox).not.toBeNull();
+
+  await page.mouse.move(
+    firstCutBox!.x + firstCutBox!.width / 2,
+    firstCutBox!.y + firstCutBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    firstCutBox!.x + firstCutBox!.width / 2,
+    firstCutBox!.y + firstCutBox!.height / 2 - 10,
+  );
+  await page.mouse.up();
+  await expect(page.locator('.info', { hasText: /^110$/ })).toBeVisible();
+
+  const movedFirstCutBox = await firstCut.boundingBox();
+  expect(movedFirstCutBox).not.toBeNull();
+
+  await page.mouse.move(
+    movedFirstCutBox!.x + movedFirstCutBox!.width / 2,
+    movedFirstCutBox!.y + movedFirstCutBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    movedFirstCutBox!.x + movedFirstCutBox!.width / 2,
+    movedFirstCutBox!.y + movedFirstCutBox!.height / 2 + 1,
+  );
+  await page.mouse.up();
+  await expect(page.locator('.info', { hasText: /^111$/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await expect(page.getByText('120%')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Zoom out' }).click();
+  await expect(page.getByText('102%')).toBeVisible();
+
+  await page.getByText('102%').click();
+  await expect(page.getByText('100%')).toBeVisible();
+});
+
+test('should let user return to the upload screen from the editor', async ({ page }) => {
+  await page.goto('/');
+  await uploadSampleImages(page);
+  await page.getByLabel('Detector type').selectOption('Manual');
+  await page.getByRole('button', { name: 'Process' }).click();
+
+  await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Select images' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Settings' })).toHaveCount(0);
+});
+
+test('should export a zip archive with processed slices', async ({ page }) => {
+  await mockZipDownload(page);
+  await page.goto('/');
+  await uploadSampleImages(page);
+
+  await page.getByLabel('Detector type').selectOption('Manual');
+  await page.getByRole('button', { name: 'Process' }).click();
+
+  const { zip, suggestedName } = await saveAndReadZip(page);
+  expect(suggestedName).toBeTruthy();
+  expect(suggestedName).toMatch(/\.zip$/);
+
+  expect(Object.keys(zip.files).sort()).toEqual(['1.png']);
+
+  const pngFile = zip.file('1.png');
+  expect(pngFile).not.toBeNull();
+  const { bytes: pngBytes } = await readPngDimensions(pngFile!);
+  expect(pngBytes.length).toBeGreaterThan(0);
+  expect(Array.from(pngBytes.slice(0, 8))).toEqual([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ]);
+});
+
+test('should export all manual slices with expected dimensions', async ({ page }) => {
+  await mockZipDownload(page);
+  await page.goto('/');
+  await uploadGeneratedChapter(page);
+
+  await page.getByLabel('Project name').fill('manual-slices');
+  await page.getByLabel('Height limit, px').fill('120');
+  await page.getByLabel('Detector type').selectOption('Manual');
+  await page.getByRole('button', { name: 'Process' }).click();
+
+  const { zip, suggestedName } = await saveAndReadZip(page);
+  expect(suggestedName).toBe('manual-slices.zip');
+  expect(Object.keys(zip.files).sort()).toEqual(['1.png', '2.png', '3.png', '4.png', '5.png']);
+
+  const dimensions = await Promise.all(
+    ['1.png', '2.png', '3.png', '4.png', '5.png'].map(async (name) => {
+      const file = zip.file(name);
+      expect(file).not.toBeNull();
+      return readPngDimensions(file!);
+    }),
+  );
+
+  expect(dimensions.map(({ width }) => width)).toEqual([64, 64, 64, 64, 64]);
+  expect(dimensions.map(({ height }) => height)).toEqual([120, 120, 120, 120, 20]);
+});
+
+test('should require confirmation before resizing width outliers and export resized slices', async ({
+  page,
+}) => {
+  await mockZipDownload(page);
+  await page.goto('/');
+  await uploadGeneratedChapter(page, [
+    createStripedPng('wide-1.png', 64, 120, ['#102030', '#203040']),
+    createStripedPng('narrow.png', 32, 120, ['#405060', '#506070']),
+    createStripedPng('wide-2.png', 64, 120, ['#708090', '#8090a0']),
+  ]);
+
+  await expect(
+    page.getByText(/Not all images have the same width! Most images \(2\) have a width of 64px/),
+  ).toBeVisible();
+
+  const processButton = page.getByRole('button', { name: 'Process' });
+  await expect(processButton).toBeDisabled();
+
+  await page.getByLabel('Resize all images to 64px width').check();
+  await expect(processButton).toBeEnabled();
+
+  await page.getByLabel('Project name').fill('resized-outlier');
+  await page.getByLabel('Height limit, px').fill('120');
+  await page.getByLabel('Detector type').selectOption('Manual');
+  await processButton.click();
+
+  const { zip, suggestedName } = await saveAndReadZip(page);
+  expect(suggestedName).toBe('resized-outlier.zip');
+  expect(Object.keys(zip.files).sort()).toEqual(['1.png', '2.png', '3.png', '4.png']);
+
+  const dimensions = await Promise.all(
+    ['1.png', '2.png', '3.png', '4.png'].map(async (name) => {
+      const file = zip.file(name);
+      expect(file).not.toBeNull();
+      return readPngDimensions(file!);
+    }),
+  );
+
+  expect(dimensions.map(({ width }) => width)).toEqual([64, 64, 64, 64]);
+  expect(dimensions.map(({ height }) => height)).toEqual([120, 120, 120, 120]);
+});
+
+type FilePayload = {
+  name: string;
+  mimeType: string;
+  buffer: Buffer;
+};
 
 type MockedSavedZip = {
   options?: { suggestedName?: string | null };
@@ -31,10 +246,48 @@ function fixturePath(name: string) {
   return path.join(__dirname, 'fixtures', name);
 }
 
-async function uploadSampleImages(page: Page) {
+function createStripedPng(
+  name: string,
+  width: number,
+  height: number,
+  colors: string[],
+): FilePayload {
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  const stripeHeight = Math.ceil(height / colors.length);
+
+  colors.forEach((color, index) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(0, index * stripeHeight, width, stripeHeight);
+  });
+
+  return {
+    name,
+    mimeType: 'image/png',
+    buffer: canvas.toBuffer('image/png'),
+  };
+}
+
+async function uploadImages(page: Page, files: string[] | FilePayload[]) {
   const imagesInput = page.getByLabel('Images');
   await expect(imagesInput).toBeVisible();
-  await imagesInput.setInputFiles([fixturePath('sample-1.png'), fixturePath('sample-2.png')]);
+  await imagesInput.setInputFiles(files);
+}
+
+async function uploadSampleImages(page: Page) {
+  await uploadImages(page, [fixturePath('sample-1.png'), fixturePath('sample-2.png')]);
+
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+}
+
+async function uploadGeneratedChapter(page: Page, files?: FilePayload[]) {
+  await uploadImages(
+    page,
+    files ?? [
+      createStripedPng('chapter-1.png', 64, 250, ['#111111', '#333333', '#555555']),
+      createStripedPng('chapter-2.png', 64, 250, ['#777777', '#999999', '#bbbbbb']),
+    ],
+  );
 
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
 }
@@ -116,60 +369,7 @@ async function mockZipDownload(page: Page) {
   });
 }
 
-test('should display link to russian version on the main page', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByText('Русская версия')).toBeVisible();
-});
-
-test('should allow uploading images and configure manual slicing', async ({ page }) => {
-  await page.goto('/');
-  await uploadSampleImages(page);
-
-  await expect(page.getByLabel('Compression artifact removal')).toHaveValue('Off');
-
-  await page.getByLabel('Detector type').selectOption('Manual');
-  await expect(page.getByLabel('Object detection sensitivity, %')).toHaveCount(0);
-
-  await page.getByRole('button', { name: 'Process' }).click();
-
-  await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'sample-1.png' })).toBeVisible();
-});
-
-test('should let user return to the upload screen from the editor', async ({ page }) => {
-  await page.goto('/');
-  await uploadSampleImages(page);
-  await page.getByLabel('Detector type').selectOption('Manual');
-  await page.getByRole('button', { name: 'Process' }).click();
-
-  await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close' }).click();
-
-  await expect(page.getByRole('heading', { name: 'Select images' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Settings' })).toHaveCount(0);
-});
-
-test('should export a zip archive with processed slices', async ({ page }) => {
-  await mockZipDownload(page);
-  await page.goto('/');
-  await uploadSampleImages(page);
-
-  await page.getByLabel('Detector type').selectOption('Manual');
-  await page.getByRole('button', { name: 'Process' }).click();
-
-  const saveButton = page.getByRole('button', { name: 'Save' });
-  await expect(saveButton).toBeVisible();
-
-  const waitForZip = page.waitForFunction(() => {
-    const saved = window.__cropybaraSavedZips as
-      | Array<{ closed?: boolean; base64?: string }>
-      | undefined;
-    return !!saved && saved.some((entry) => entry.closed && entry.base64);
-  });
-
-  await saveButton.click();
-  await waitForZip;
-
+async function getLastSavedZip(page: Page) {
   const payload = await page.evaluate<{ base64: string; suggestedName: string | null } | null>(
     () => {
       const saved = window.__cropybaraSavedZips as
@@ -186,19 +386,38 @@ test('should export a zip archive with processed slices', async ({ page }) => {
   );
 
   expect(payload).not.toBeNull();
+
   const { base64, suggestedName } = payload!;
-  expect(suggestedName).toBeTruthy();
-  expect(suggestedName).toMatch(/\.zip$/);
+  return {
+    suggestedName,
+    zip: await JSZip.loadAsync(Buffer.from(base64, 'base64')),
+  };
+}
 
-  const zipBuffer = Buffer.from(base64, 'base64');
-  const zip = await JSZip.loadAsync(zipBuffer);
-  expect(Object.keys(zip.files).sort()).toEqual(['1.png']);
+async function readPngDimensions(file: JSZip.JSZipObject) {
+  const bytes = await file.async('uint8array');
+  const image = await loadImage(Buffer.from(bytes));
 
-  const pngFile = zip.file('1.png');
-  expect(pngFile).not.toBeNull();
-  const pngBytes = await pngFile!.async('uint8array');
-  expect(pngBytes.length).toBeGreaterThan(0);
-  expect(Array.from(pngBytes.slice(0, 8))).toEqual([
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-  ]);
-});
+  return {
+    width: image.width,
+    height: image.height,
+    bytes,
+  };
+}
+
+async function saveAndReadZip(page: Page) {
+  const saveButton = page.getByRole('button', { name: 'Save' });
+  await expect(saveButton).toBeVisible();
+
+  const waitForZip = page.waitForFunction(() => {
+    const saved = window.__cropybaraSavedZips as
+      | Array<{ closed?: boolean; base64?: string }>
+      | undefined;
+    return !!saved && saved.some((entry) => entry.closed && entry.base64);
+  });
+
+  await saveButton.click();
+  await waitForZip;
+
+  return getLastSavedZip(page);
+}
