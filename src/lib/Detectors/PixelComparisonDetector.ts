@@ -84,38 +84,11 @@ export class PixelComparisonDetector {
           continue;
         }
 
-        const rowPixels = await rowPixelProvider.getGrayscaleRow(currentRowY);
-        const effectiveWidth = rowPixels.length;
-
-        // If the row is empty (e.g., error in RowPixelProvider or zero-width image)
-        if (effectiveWidth === 0) {
-          if (images.length > 0 && images[0].width > 0) {
-            console.warn(
-              `PixelComparisonDetector: Received an empty pixel row for Y=${currentRowY}`,
-            );
-          }
-          continue;
-        }
-
-        let canSliceThisRow = true;
-        const startPixelCheck = params.margins + 1; // Index of the first pixel for `currentPixel`
-        const endPixelCheckLimit = effectiveWidth - params.margins; // Pixels after this index (exclusive) are not checked
-
-        // The pixel check loop will only run if there is at least one pair to compare
-        // (i.e., startPixelCheck < endPixelCheckLimit)
-        // If effectiveWidth <= 2 * params.margins + 1, the loop will not execute, canSliceThisRow will remain true.
-        if (startPixelCheck < endPixelCheckLimit) {
-          for (let px = startPixelCheck; px < endPixelCheckLimit; px++) {
-            const prevPixel = rowPixels[px - 1];
-            const currentPixel = rowPixels[px];
-            const diff = Math.abs(currentPixel - prevPixel);
-
-            if (diff > threshold) {
-              canSliceThisRow = false;
-              break;
-            }
-          }
-        }
+        const canSliceThisRow = await rowPixelProvider.canSliceRow(
+          currentRowY,
+          params.margins,
+          threshold,
+        );
 
         if (canSliceThisRow) {
           cuts.push(currentRowY);

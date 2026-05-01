@@ -10,6 +10,7 @@ export class RowPixelProvider {
   private stripGlobalOffsetY: number = -1; // Global Y-coordinate of the top of the current "strip"
   private canvasHeight: number = 0; // Height of the current "strip" on the canvas
   private isStripLoaded: boolean = false;
+  private imageCache = new Map<number, Promise<HTMLImageElement>>();
 
   public constructor(private images: ImageFile[]) {
     this.imageStartRows = [];
@@ -45,7 +46,52 @@ export class RowPixelProvider {
   }
 
   public async getGrayscaleRow(globalRowY: number): Promise<number[]> {
-    if (this.totalHeight === 0) return [];
+    const { data, width } = await this.getRowImageData(globalRowY);
+    const grayscaleRow: number[] = new Array(this.images[0].width);
+    for (let i = 0; i < width; ++i) {
+      const r_idx = i * 4;
+      grayscaleRow[i] = this.getGrayscalePixel(data, r_idx);
+    }
+
+    return grayscaleRow;
+  }
+
+  public async canSliceRow(
+    globalRowY: number,
+    margins: number,
+    threshold: number,
+  ): Promise<boolean> {
+    const { data, width } = await this.getRowImageData(globalRowY);
+    const startPixelCheck = margins + 1;
+    const endPixelCheckLimit = width - margins;
+
+    if (startPixelCheck >= endPixelCheckLimit) {
+      return true;
+    }
+
+    let prevPixel = this.getGrayscalePixel(data, (startPixelCheck - 1) * 4);
+
+    for (let px = startPixelCheck; px < endPixelCheckLimit; px++) {
+      const currentPixel = this.getGrayscalePixel(data, px * 4);
+      const diff = Math.abs(currentPixel - prevPixel);
+
+      if (diff > threshold) {
+        return false;
+      }
+
+      prevPixel = currentPixel;
+    }
+
+    return true;
+  }
+
+  private async getRowImageData(globalRowY: number): Promise<{
+    data: Uint8ClampedArray;
+    width: number;
+  }> {
+    if (this.totalHeight === 0) {
+      return { data: new Uint8ClampedArray(), width: 0 };
+    }
     if (globalRowY < 0 || globalRowY >= this.totalHeight) {
       throw new Error(
         `Out of global bounds: globalRowY ${globalRowY} not in [0, ${this.totalHeight - 1}]`,
@@ -69,17 +115,16 @@ export class RowPixelProvider {
     }
 
     const imageData = this.ctx.getImageData(0, localStripY, this.images[0].width, 1);
-    const grayscaleRow: number[] = new Array(this.images[0].width);
-    for (let i = 0; i < this.images[0].width; ++i) {
-      const r_idx = i * 4;
-      const r = imageData.data[r_idx];
-      const g = imageData.data[r_idx + 1];
-      const b = imageData.data[r_idx + 2];
+    return {
+      data: imageData.data,
+      width: this.images[0].width,
+    };
+  }
 
-      grayscaleRow[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-    }
-
-    return grayscaleRow;
+  private getGrayscalePixel(data: Uint8ClampedArray, offset: number): number {
+    return Math.floor(
+      0.299 * data[offset] + 0.587 * data[offset + 1] + 0.114 * data[offset + 2] + 0.5,
+    );
   }
 
   private async loadStripContaining(globalRowYTarget: number): Promise<void> {
@@ -100,6 +145,7 @@ export class RowPixelProvider {
     // If totalHeight < canvasHeight, then stripGlobalOffsetY should be 0.
     const maxPossibleStripOffsetY = Math.max(0, this.totalHeight - this.canvasHeight);
     this.stripGlobalOffsetY = Math.min(this.stripGlobalOffsetY, maxPossibleStripOffsetY);
+    this.pruneImageCache();
 
     this.ctx.clearRect(0, 0, this.images[0].width, this.canvasHeight);
 
@@ -113,14 +159,14 @@ export class RowPixelProvider {
         imgGlobalEndY > this.stripGlobalOffsetY &&
         imgGlobalStartY < this.stripGlobalOffsetY + this.canvasHeight
       ) {
-        const htmlImg = await imgFile.image(); // Load HTMLImageElement
+        const htmlImg = await this.getImageElement(i);
 
         // Source region from the original image
         const sX = 0;
         const sWidth = imgFile.width;
 
         // Calculate sY and sHeight to correctly cut the part of the image that falls into the "strip"
-        let sY_offset_from_img_top = Math.max(0, this.stripGlobalOffsetY - imgGlobalStartY);
+        const sY_offset_from_img_top = Math.max(0, this.stripGlobalOffsetY - imgGlobalStartY);
         let sY = sY_offset_from_img_top;
 
         let sHeight = imgFile.height - sY_offset_from_img_top;
@@ -136,7 +182,7 @@ export class RowPixelProvider {
 
         // Destination region on the "strip" canvas
         const dX = 0;
-        let dY = Math.max(0, imgGlobalStartY - this.stripGlobalOffsetY);
+        const dY = Math.max(0, imgGlobalStartY - this.stripGlobalOffsetY);
         const dWidth = imgFile.width; // Draw the image with its original width
         const dHeight = sHeight;
 
@@ -153,5 +199,24 @@ export class RowPixelProvider {
     }
 
     this.isStripLoaded = true;
+  }
+
+  private getImageElement(index: number): Promise<HTMLImageElement> {
+    let image = this.imageCache.get(index);
+    if (!image) {
+      image = this.images[index].image();
+      this.imageCache.set(index, image);
+    }
+
+    return image;
+  }
+
+  private pruneImageCache() {
+    for (const index of this.imageCache.keys()) {
+      const imageEndY = this.imageStartRows[index] + this.images[index].height;
+      if (imageEndY <= this.stripGlobalOffsetY) {
+        this.imageCache.delete(index);
+      }
+    }
   }
 }
