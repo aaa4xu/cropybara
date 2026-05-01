@@ -37,6 +37,9 @@ jobs:
       - name: Run lint
         run: bun run lint
 
+      - name: Build project
+        run: bun run build
+
       - name: Run Svelte check
         run: bun run check
 
