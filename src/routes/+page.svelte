@@ -5,14 +5,11 @@
   import EditorScreen from '$lib/Screens/EditorScreen.svelte';
   import { AsyncImageResizer } from '$lib/ImageResizer/AsyncImageResizer';
   import { ProgressBarState } from '$lib/States/ProgressBarState.svelte';
-  import type { ImagesSaver } from '$lib/ImageSaver/ImagesSaver';
-  import { ZipArchiveWithStreamsaverImageSaver } from '$lib/ImageSaver/ZipArchiveWithStreamsaverImageSaver';
-  import { CanvasChef } from '$lib/Chef/CanvasChef';
-  import type { Chef } from '$lib/Chef/Chef';
-  import { CarvingKnife } from '$lib/CarvingKnife/CarvingKnife';
   import { AlertsLevel, AlertsState } from '$lib/States/AlertsState.svelte';
   import { m } from '$lib/paraglide/messages.js';
-  import { ZipArchiveWithFSImageSaver } from '$lib/ImageSaver/ZipArchiveWithFSImageSaver';
+  import type { ZipEntriesSinkFactory } from '$lib/ImageSaver/ZipEntriesSink';
+  import { ZipEntriesWithFSImageSaver } from '$lib/ImageSaver/ZipEntriesWithFSImageSaver';
+  import { ZipEntriesWithStreamsaverImageSaver } from '$lib/ImageSaver/ZipEntriesWithStreamsaverImageSaver';
   import { Analytics } from '$lib/Analytics';
   import {
     ConfigDenoiser,
@@ -30,6 +27,13 @@
   import { loadAcqqWatermark } from '$lib/Watermarks/loadAcqqWatermark';
   import { onDestroy } from 'svelte';
   import { markTrace, measureTrace } from '$lib/utils/performanceTrace';
+  import {
+    SaveConcurrency,
+    SaveResultExporter,
+    SaveResultService,
+    SlicePlanFactory,
+    WorkerSliceEncoderPool,
+  } from '$lib/SavePipeline';
 
   let images: ImageFile[] = $state([]);
   let config: ConfigState | null = $state(null);
@@ -266,27 +270,49 @@
     }
 
     markTrace('save:start');
-    const saver: ImagesSaver = ZipArchiveWithFSImageSaver.isSupported
-      ? new ZipArchiveWithFSImageSaver()
-      : new ZipArchiveWithStreamsaverImageSaver();
+    const controller = new AbortController();
 
     /* (cuts + 1) + 1 for the zip file */
     let task = $state({ total: cuts.length + 1 + 1, ready: 0 });
     const getter = () => task;
     progressBar.add(getter);
 
+    const onProgress = () => {
+      task.ready += 1;
+      console.log('Progress:', task.ready, '/', task.total);
+    };
+
+    const encoder = { current: null as WorkerSliceEncoderPool | null };
     try {
-      const chef: Chef = new CanvasChef();
+      if (!WorkerSliceEncoderPool.isSupported) {
+        throw new Error('Worker slice encoding is not supported by this browser.');
+      }
 
-      const controller = new AbortController();
-      const slices = CarvingKnife.cut(images, cuts);
+      const sinkFactory: ZipEntriesSinkFactory = ZipEntriesWithFSImageSaver.isSupported
+        ? new ZipEntriesWithFSImageSaver()
+        : new ZipEntriesWithStreamsaverImageSaver();
 
-      markTrace('save:write:start');
-      performance.mark('slicingStart');
+      const planner = new SlicePlanFactory();
+      const exporter = new SaveResultExporter(sinkFactory, async () => {
+        markTrace('save:write:start');
+        performance.mark('slicingStart');
 
-      await saver.save(config.name, chef.process(slices, controller.signal), () => {
-        task.ready += 1;
-        console.log('Progress:', task.ready, '/', task.total);
+        const concurrency = SaveConcurrency.detect();
+        const sources = planner.createSources(images);
+        encoder.current = await WorkerSliceEncoderPool.create({
+          sources,
+          workers: concurrency,
+        });
+
+        return new SaveResultService(planner, encoder.current, concurrency);
+      });
+
+      await exporter.save({
+        name: config.name,
+        images,
+        cuts,
+        signal: controller.signal,
+        onProgress,
       });
 
       performance.mark('slicingFinish');
@@ -308,6 +334,7 @@
         alerts.display(AlertsLevel.Error, m.EditorScreen_SaverError());
       }
     } finally {
+      encoder.current?.terminate();
       markTrace('save:end');
       measureTrace('save', 'save:start', 'save:end');
       progressBar.remove(getter);

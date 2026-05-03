@@ -2,37 +2,32 @@ import type { DosDateTime } from './DosDateTime';
 import type { ZipEntry } from './ZipEntry';
 import { ZipFormat } from './ZipFormat';
 
+export interface KnownLocalHeaderParams {
+  readonly nameBytes: Uint8Array;
+  readonly modifiedAt: DosDateTime;
+  readonly crc32: number;
+  readonly size: number;
+}
+
 export class ZipHeaderFactory {
-  public createLocalHeader(nameBytes: Uint8Array, modifiedAt: DosDateTime): Uint8Array {
-    const header = new Uint8Array(30 + nameBytes.length);
+  public createKnownLocalHeader(params: KnownLocalHeaderParams): Uint8Array {
+    const header = new Uint8Array(30 + params.nameBytes.length);
     const view = new DataView(header.buffer);
 
     view.setUint32(0, 0x04034b50, true);
     view.setUint16(4, 20, true);
-    view.setUint16(6, ZipFormat.utf8AndDataDescriptorFlag, true);
+    view.setUint16(6, ZipFormat.utf8Flag, true);
     view.setUint16(8, ZipFormat.compressionStore, true);
-    view.setUint16(10, modifiedAt.time, true);
-    view.setUint16(12, modifiedAt.date, true);
-    view.setUint32(14, 0, true);
-    view.setUint32(18, 0, true);
-    view.setUint32(22, 0, true);
-    view.setUint16(26, nameBytes.length, true);
+    view.setUint16(10, params.modifiedAt.time, true);
+    view.setUint16(12, params.modifiedAt.date, true);
+    view.setUint32(14, params.crc32, true);
+    view.setUint32(18, params.size, true);
+    view.setUint32(22, params.size, true);
+    view.setUint16(26, params.nameBytes.length, true);
     view.setUint16(28, 0, true);
-    header.set(nameBytes, 30);
+    header.set(params.nameBytes, 30);
 
     return header;
-  }
-
-  public createDataDescriptor(crc32: number, size: number): Uint8Array {
-    const descriptor = new Uint8Array(ZipFormat.dataDescriptorLength);
-    const view = new DataView(descriptor.buffer);
-
-    view.setUint32(0, 0x08074b50, true);
-    view.setUint32(4, crc32, true);
-    view.setUint32(8, size, true);
-    view.setUint32(12, size, true);
-
-    return descriptor;
   }
 
   public createCentralDirectoryHeader(entry: ZipEntry): Uint8Array {
@@ -42,7 +37,7 @@ export class ZipHeaderFactory {
     view.setUint32(0, 0x02014b50, true);
     view.setUint16(4, 20, true);
     view.setUint16(6, 20, true);
-    view.setUint16(8, ZipFormat.utf8AndDataDescriptorFlag, true);
+    view.setUint16(8, entry.generalPurposeFlag, true);
     view.setUint16(10, ZipFormat.compressionStore, true);
     view.setUint16(12, entry.modifiedAt.time, true);
     view.setUint16(14, entry.modifiedAt.date, true);

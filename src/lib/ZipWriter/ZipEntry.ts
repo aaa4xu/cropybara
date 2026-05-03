@@ -1,4 +1,5 @@
 import type { DosDateTime } from './DosDateTime';
+import { ZipFormat } from './ZipFormat';
 
 export class ZipEntry {
   public constructor(
@@ -8,5 +9,6 @@ export class ZipEntry {
     public readonly uncompressedSize: number,
     public readonly localHeaderOffset: number,
     public readonly modifiedAt: DosDateTime,
+    public readonly generalPurposeFlag = ZipFormat.utf8Flag,
   ) {}
 }
