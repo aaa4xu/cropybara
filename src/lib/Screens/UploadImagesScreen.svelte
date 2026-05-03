@@ -6,10 +6,12 @@
   import { onMount } from 'svelte';
   import { Analytics } from '$lib/Analytics';
   import { m } from '$lib/paraglide/messages.js';
+  import { markTrace } from '$lib/utils/performanceTrace';
 
   const { onImages }: { onImages: (images: ImageFile[]) => void } = $props();
   onMount(() => {
     Analytics.trackScreen('UploadImageScreen');
+    markTrace('upload-screen:ready');
   });
 </script>
 

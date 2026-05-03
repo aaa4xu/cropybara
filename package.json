@@ -10,6 +10,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "format": "prettier --write .",
     "lint": "prettier --check . && eslint .",
+    "benchmark:e2e-cycle": "bun benchmarks/e2e-cycle.ts",
     "test:unit": "vitest",
     "test:e2e": "playwright test",
     "test": "bun run test:unit -- --run && bun run test:e2e"

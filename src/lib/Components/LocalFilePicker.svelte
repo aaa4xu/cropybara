@@ -21,6 +21,7 @@
   import WebShareTargetHandler from '$lib/Components/FilePicker/WebShareTargetHandler.svelte';
   import { browser } from '$app/environment';
   import { Analytics } from '$lib/Analytics';
+  import { markTrace, measureTrace } from '$lib/utils/performanceTrace';
 
   const alerts = AlertsState.use();
   const progressBar = ProgressBarState.use();
@@ -36,6 +37,7 @@
     const state = $state({ total: 1, ready: 0 });
     const task = () => state;
     progressBar.add(task);
+    markTrace('upload:start');
 
     try {
       const filesPromises = files.map(async (file) => {
@@ -102,6 +104,8 @@
           );
         });
     } finally {
+      markTrace('upload:end');
+      measureTrace('upload', 'upload:start', 'upload:end');
       progressBar.remove(task);
     }
   }

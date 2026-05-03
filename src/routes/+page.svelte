@@ -29,6 +29,7 @@
   import { DOM_EXCEPTION_NAMES, hasDomExceptionName } from '$lib/utils/domException';
   import { loadAcqqWatermark } from '$lib/Watermarks/loadAcqqWatermark';
   import { onDestroy } from 'svelte';
+  import { markTrace, measureTrace } from '$lib/utils/performanceTrace';
 
   let images: ImageFile[] = $state([]);
   let config: ConfigState | null = $state(null);
@@ -81,6 +82,16 @@
   }
 
   async function handleConfig(cfg: ConfigState) {
+    markTrace('process:start');
+    try {
+      await processConfig(cfg);
+    } finally {
+      markTrace('process:end');
+      measureTrace('process', 'process:start', 'process:end');
+    }
+  }
+
+  async function processConfig(cfg: ConfigState) {
     const outliers = images.filter((image) => image.width !== widths[0][0]);
 
     if (outliers.length > 0) {
@@ -254,6 +265,7 @@
       return;
     }
 
+    markTrace('save:start');
     const saver: ImagesSaver = ZipArchiveWithFSImageSaver.isSupported
       ? new ZipArchiveWithFSImageSaver()
       : new ZipArchiveWithStreamsaverImageSaver();
@@ -269,6 +281,7 @@
       const controller = new AbortController();
       const slices = CarvingKnife.cut(images, cuts);
 
+      markTrace('save:write:start');
       performance.mark('slicingStart');
 
       await saver.save(config.name, chef.process(slices, controller.signal), () => {
@@ -282,6 +295,8 @@
         'slicingStart',
         'slicingFinish',
       );
+      markTrace('save:write:end');
+      measureTrace('save:write', 'save:write:start', 'save:write:end');
       console.debug(slicingMeasure.duration);
       alerts.display(AlertsLevel.Success, m.Done());
       Analytics.trackScreen('ResultScreen');
@@ -293,6 +308,8 @@
         alerts.display(AlertsLevel.Error, m.EditorScreen_SaverError());
       }
     } finally {
+      markTrace('save:end');
+      measureTrace('save', 'save:start', 'save:end');
       progressBar.remove(getter);
     }
   }
