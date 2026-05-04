@@ -2,24 +2,99 @@
 /// <reference no-default-lib="true"/>
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
-import { build, files, version } from '$service-worker';
+import { base, build, files, prerendered, version } from '$service-worker';
 import { WebShareTarget } from '../lib/WebShareTarget';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
 // Create a unique cache name for this deployment
 const CACHE = `cache-${version}`;
+const APP_SHELL = `${base}/`;
+const BUNDLE_REFERENCE_PATTERN = /["'`]((?:\.\.\/workers\/|\.\/chunks\/)[^"'`]+\.js)["'`]/g;
 
 const ASSETS = [
+  APP_SHELL,
   ...build, // the app itself
   ...files, // everything in `static`
-];
+  ...prerendered, // prerendered routes and endpoints
+].filter((asset, index, assets) => assets.indexOf(asset) === index);
+
+function isJavaScript(pathname: string): boolean {
+  return pathname.endsWith('.js');
+}
+
+function isNavigationRequest(request: Request): boolean {
+  return request.mode === 'navigate' || (request.headers.get('accept') ?? '').includes('text/html');
+}
+
+function resolveSameOriginPath(pathname: string, sourcePathname: string): string | null {
+  const url = new URL(pathname, new URL(sourcePathname, sw.location.origin));
+
+  return url.origin === sw.location.origin ? url.pathname : null;
+}
+
+async function findBundledWorkerReferences(cache: Cache, pathname: string): Promise<string[]> {
+  const response = await cache.match(pathname);
+
+  if (!response) {
+    return [];
+  }
+
+  const source = await response.clone().text();
+  const references = new Set<string>();
+
+  for (const match of source.matchAll(BUNDLE_REFERENCE_PATTERN)) {
+    const reference = resolveSameOriginPath(match[1], pathname);
+
+    if (reference) {
+      references.add(reference);
+    }
+  }
+
+  return [...references];
+}
+
+async function addDiscoveredWorkerBundlesToCache(cache: Cache) {
+  const queued = ASSETS.filter(isJavaScript);
+  const seen = new Set(ASSETS);
+
+  while (queued.length > 0) {
+    const pathname = queued.shift();
+
+    if (!pathname) {
+      continue;
+    }
+
+    const references = await findBundledWorkerReferences(cache, pathname);
+
+    for (const reference of references) {
+      if (seen.has(reference)) {
+        continue;
+      }
+
+      seen.add(reference);
+
+      const response = await fetch(reference);
+
+      if (!response.ok) {
+        throw new Error(`Failed to cache worker bundle ${reference}: ${response.status}`);
+      }
+
+      await cache.put(reference, response.clone());
+
+      if (isJavaScript(reference)) {
+        queued.push(reference);
+      }
+    }
+  }
+}
 
 sw.addEventListener('install', (event) => {
   // Create a new cache and add all files to it
   async function addFilesToCache() {
     const cache = await caches.open(CACHE);
     await cache.addAll(ASSETS);
+    await addDiscoveredWorkerBundlesToCache(cache);
   }
 
   event.waitUntil(addFilesToCache());
@@ -105,6 +180,14 @@ sw.addEventListener('fetch', (event) => {
 
       if (response) {
         return response;
+      }
+
+      if (isNavigationRequest(event.request)) {
+        const fallback = await cache.match(APP_SHELL);
+
+        if (fallback) {
+          return fallback;
+        }
       }
 
       // if there's no cache, then just error out
