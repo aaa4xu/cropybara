@@ -299,10 +299,6 @@
     let processingStartedAt: number | null = null;
     let processingTelemetry: ReturnType<typeof createProcessingTelemetry> | null = null;
     try {
-      if (!WorkerSliceEncoderPool.isSupported) {
-        throw new Error('Worker slice encoding is not supported by this browser.');
-      }
-
       const saveBackend = ZipEntriesWithFSImageSaver.isSupported
         ? 'file-system-access'
         : 'streamsaver';
@@ -325,6 +321,11 @@
         workerCount,
       });
       processingTelemetry = telemetry;
+
+      if (!WorkerSliceEncoderPool.isSupported) {
+        throw new Error('Worker slice encoding is not supported by this browser.');
+      }
+
       const exporter = new SaveResultExporter(sinkFactory, async () => {
         markTrace('save:write:start');
         performance.mark('slicingStart');
@@ -383,11 +384,14 @@
       alerts.display(AlertsLevel.Success, m.Done());
       Analytics.trackScreen('ResultScreen');
     } catch (err) {
-      if (processingTelemetry && processingStartedAt !== null) {
+      if (processingTelemetry) {
         Analytics.trackProcessingFailed(
           {
             ...processingTelemetry,
-            duration_ms: roundMetric(performance.now() - processingStartedAt),
+            duration_ms:
+              processingStartedAt === null
+                ? undefined
+                : roundMetric(performance.now() - processingStartedAt),
             zip_entry_count: zipTelemetry.entriesWritten,
             zip_payload_bytes: zipTelemetry.payloadBytesWritten,
             zip_payload_mib: roundMetric(zipTelemetry.payloadBytesWritten / (1024 * 1024)),

@@ -55,10 +55,22 @@ export class Analytics {
   }
 
   public static trackProcessingFailed(metrics: Properties, error: unknown) {
-    this.capturePerformanceEvent('processing_failed', {
+    const properties = {
       ...metrics,
       ...this.errorProperties(error),
-    });
+    };
+
+    this.capturePerformanceEvent('processing_failed', properties);
+
+    if (!browser) return;
+
+    posthog.captureException(
+      error,
+      this.compactProperties({
+        ...properties,
+        ...this.performanceContext(),
+      }),
+    );
   }
 
   protected static capturePerformanceEvent(event: string, metrics: Properties) {
