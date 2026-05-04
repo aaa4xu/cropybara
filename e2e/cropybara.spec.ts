@@ -7,6 +7,12 @@ import { fileURLToPath } from 'node:url';
 test('should display link to russian version on the main page', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Русская версия')).toBeVisible();
+  const buildHashLink = page.getByRole('link', { name: /^(?:[0-9a-f]{7}|unknown)$/ });
+  await expect(buildHashLink).toBeVisible();
+  await expect(buildHashLink).toHaveAttribute(
+    'href',
+    /https:\/\/github\.com\/aaa4xu\/cropybara\/commit\/(?:[0-9a-f]{7}|unknown)/,
+  );
 });
 
 test('should reject non-image files and keep the upload screen open', async ({ page }) => {
