@@ -7,11 +7,20 @@
   import { ProgressBarState } from '$lib/States/ProgressBarState.svelte';
   import { AlertsLevel, AlertsState } from '$lib/States/AlertsState.svelte';
   import { m } from '$lib/paraglide/messages.js';
-  import type { ZipEntriesSinkFactory } from '$lib/ImageSaver/ZipEntriesSink';
   import { ZipEntriesWithFSImageSaver } from '$lib/ImageSaver/ZipEntriesWithFSImageSaver';
   import { ZipEntriesWithStreamsaverImageSaver } from '$lib/ImageSaver/ZipEntriesWithStreamsaverImageSaver';
+  import {
+    MeasuredZipEntriesSinkFactory,
+    type ZipEntriesTelemetry,
+  } from '$lib/ImageSaver/MeasuredZipEntriesSink';
   import { ImageOutputFormatRegistry } from '$lib/ImageOutputFormat';
   import { Analytics } from '$lib/Analytics';
+  import {
+    createProcessingId,
+    createProcessingTelemetry,
+    ratePerSecond,
+    roundMetric,
+  } from '$lib/ProcessingTelemetry';
   import {
     ConfigDenoiser,
     ConfigDetector,
@@ -263,7 +272,8 @@
   }
 
   async function handleCuts(cuts: ReadonlyArray<number>) {
-    if (!config) return;
+    const currentConfig = config;
+    if (!currentConfig) return;
 
     if (denoiserPromise) {
       alerts.display(AlertsLevel.Info, m.ConfigScreen_DenoiserInProgress());
@@ -284,34 +294,55 @@
     };
 
     const encoder = { current: null as WorkerSliceEncoderPool | null };
+    const processingId = createProcessingId();
+    const zipTelemetry: ZipEntriesTelemetry = { entriesWritten: 0, payloadBytesWritten: 0 };
+    let processingStartedAt: number | null = null;
+    let processingTelemetry: ReturnType<typeof createProcessingTelemetry> | null = null;
     try {
       if (!WorkerSliceEncoderPool.isSupported) {
         throw new Error('Worker slice encoding is not supported by this browser.');
       }
 
-      const sinkFactory: ZipEntriesSinkFactory = ZipEntriesWithFSImageSaver.isSupported
-        ? new ZipEntriesWithFSImageSaver()
-        : new ZipEntriesWithStreamsaverImageSaver();
-
+      const saveBackend = ZipEntriesWithFSImageSaver.isSupported
+        ? 'file-system-access'
+        : 'streamsaver';
+      const sinkFactory = new MeasuredZipEntriesSinkFactory(
+        ZipEntriesWithFSImageSaver.isSupported
+          ? new ZipEntriesWithFSImageSaver()
+          : new ZipEntriesWithStreamsaverImageSaver(),
+        zipTelemetry,
+      );
       const planner = new SlicePlanFactory();
-      const output = ImageOutputFormatRegistry.normalizeOptions(config.output);
+      const output = ImageOutputFormatRegistry.normalizeOptions(currentConfig.output);
+      const workerCount = SaveConcurrency.detect();
+      const telemetry = createProcessingTelemetry({
+        processingId,
+        images,
+        cuts,
+        config: currentConfig,
+        output,
+        saveBackend,
+        workerCount,
+      });
+      processingTelemetry = telemetry;
       const exporter = new SaveResultExporter(sinkFactory, async () => {
         markTrace('save:write:start');
         performance.mark('slicingStart');
+        processingStartedAt = performance.now();
+        Analytics.trackProcessingStarted(telemetry);
 
-        const concurrency = SaveConcurrency.detect();
         const sources = planner.createSources(images);
         encoder.current = await WorkerSliceEncoderPool.create({
           sources,
-          workers: concurrency,
+          workers: workerCount,
           output,
         });
 
-        return new SaveResultService(planner, encoder.current, concurrency, output);
+        return new SaveResultService(planner, encoder.current, workerCount, output);
       });
 
       await exporter.save({
-        name: config.name,
+        name: currentConfig.name,
         images,
         cuts,
         signal: controller.signal,
@@ -327,9 +358,43 @@
       markTrace('save:write:end');
       measureTrace('save:write', 'save:write:start', 'save:write:end');
       console.debug(slicingMeasure.duration);
+      const durationMs =
+        processingStartedAt === null
+          ? slicingMeasure.duration
+          : performance.now() - processingStartedAt;
+      Analytics.trackProcessingFinished({
+        ...telemetry,
+        duration_ms: roundMetric(durationMs),
+        slicing_duration_ms: roundMetric(slicingMeasure.duration),
+        pixels_per_second: ratePerSecond(telemetry.input_total_pixels, durationMs),
+        slicing_pixels_per_second: ratePerSecond(
+          telemetry.input_total_pixels,
+          slicingMeasure.duration,
+        ),
+        megapixels_per_second: ratePerSecond(telemetry.input_total_megapixels, durationMs),
+        slicing_megapixels_per_second: ratePerSecond(
+          telemetry.input_total_megapixels,
+          slicingMeasure.duration,
+        ),
+        zip_entry_count: zipTelemetry.entriesWritten,
+        zip_payload_bytes: zipTelemetry.payloadBytesWritten,
+        zip_payload_mib: roundMetric(zipTelemetry.payloadBytesWritten / (1024 * 1024)),
+      });
       alerts.display(AlertsLevel.Success, m.Done());
       Analytics.trackScreen('ResultScreen');
     } catch (err) {
+      if (processingTelemetry && processingStartedAt !== null) {
+        Analytics.trackProcessingFailed(
+          {
+            ...processingTelemetry,
+            duration_ms: roundMetric(performance.now() - processingStartedAt),
+            zip_entry_count: zipTelemetry.entriesWritten,
+            zip_payload_bytes: zipTelemetry.payloadBytesWritten,
+            zip_payload_mib: roundMetric(zipTelemetry.payloadBytesWritten / (1024 * 1024)),
+          },
+          err,
+        );
+      }
       console.error(err);
       if (hasDomExceptionName(err, DOM_EXCEPTION_NAMES.NoModificationAllowed)) {
         alerts.display(AlertsLevel.Error, m.EditorScreen_SaverLocationNotWritable());
