@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ImageFile } from '$lib/ImageFile';
+import { ImageOutputFormat } from '$lib/ImageOutputFormat';
 
 import { SlicePlanFactory } from './SlicePlanFactory';
 
@@ -16,6 +17,16 @@ describe('SlicePlanFactory', () => {
     expect(jobs[0].name).toBe('001.png');
     expect(jobs[1].name).toBe('002.png');
     expect(jobs[104].name).toBe('105.png');
+  });
+
+  it('uses the selected output format extension', () => {
+    const jobs = new SlicePlanFactory().create(
+      [image('source.png', 10, 100)],
+      [50],
+      ImageOutputFormat.Jpeg,
+    );
+
+    expect(jobs.map((job) => job.name)).toStrictEqual(['1.jpg', '2.jpg']);
   });
 
   it('keeps source ids and coordinates when a slice crosses image boundaries', () => {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCanvas, loadImage } from 'canvas';
 
+import { ImageOutputFormat } from '$lib/ImageOutputFormat';
 import { Crc32 } from '$lib/ZipWriter';
 
 import { CanvasSliceWorkerRenderer } from './CanvasSliceWorkerRenderer';
@@ -70,6 +71,43 @@ describe('CanvasSliceWorkerRenderer', () => {
     await expectRows(slice.bytes, ['#00ff00', '#0000ff', '#ffff00']);
     expect(performance.getEntriesByName('cropybara:save:slice:0:1.png:draw:start')).toHaveLength(0);
     expect(performance.getEntriesByName('cropybara:save:slice:0:1.png:draw')).toHaveLength(0);
+  });
+
+  it('encodes slices with the selected output format and quality', async () => {
+    const renderer = new CanvasSliceWorkerRenderer();
+    const sources: SliceSourceDto[] = [source(0, 'first.png', ['#111111', '#ff0000'])];
+    const job: SliceJobDto = {
+      index: 0,
+      name: '1.jpg',
+      width: 2,
+      height: 1,
+      chunks: [
+        {
+          sourceId: 0,
+          srcX: 0,
+          srcY: 1,
+          srcWidth: 2,
+          srcHeight: 1,
+          dstX: 0,
+          dstY: 0,
+          dstWidth: 2,
+          dstHeight: 1,
+        },
+      ],
+    };
+
+    renderer.registerSources(sources, {
+      format: ImageOutputFormat.Jpeg,
+      quality: 80,
+    });
+    const slice = await renderer.render(job);
+
+    expect(slice).toMatchObject({
+      name: '1.jpg',
+      type: 'image/jpeg',
+      size: slice.bytes.byteLength,
+    });
+    expect(Array.from(slice.bytes.slice(0, 3))).toStrictEqual([0xff, 0xd8, 0xff]);
   });
 
   it('rejects unknown source ids', async () => {

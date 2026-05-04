@@ -10,6 +10,7 @@
   import type { ZipEntriesSinkFactory } from '$lib/ImageSaver/ZipEntriesSink';
   import { ZipEntriesWithFSImageSaver } from '$lib/ImageSaver/ZipEntriesWithFSImageSaver';
   import { ZipEntriesWithStreamsaverImageSaver } from '$lib/ImageSaver/ZipEntriesWithStreamsaverImageSaver';
+  import { ImageOutputFormatRegistry } from '$lib/ImageOutputFormat';
   import { Analytics } from '$lib/Analytics';
   import {
     ConfigDenoiser,
@@ -293,6 +294,7 @@
         : new ZipEntriesWithStreamsaverImageSaver();
 
       const planner = new SlicePlanFactory();
+      const output = ImageOutputFormatRegistry.normalizeOptions(config.output);
       const exporter = new SaveResultExporter(sinkFactory, async () => {
         markTrace('save:write:start');
         performance.mark('slicingStart');
@@ -302,9 +304,10 @@
         encoder.current = await WorkerSliceEncoderPool.create({
           sources,
           workers: concurrency,
+          output,
         });
 
-        return new SaveResultService(planner, encoder.current, concurrency);
+        return new SaveResultService(planner, encoder.current, concurrency, output);
       });
 
       await exporter.save({

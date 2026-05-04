@@ -1,9 +1,14 @@
+import {
+  DEFAULT_IMAGE_OUTPUT_OPTIONS,
+  ImageOutputFormatRegistry,
+  type ImageOutputOptions,
+} from '$lib/ImageOutputFormat';
 import { Crc32 } from '$lib/ZipWriter/Crc32';
 
 import { ImageBitmapLruCache } from './ImageBitmapLruCache';
 import type { EncodedSliceDto, SliceJobDto, SliceSourceDto } from './SlicePipelineTypes';
 
-type SliceEncodeStage = 'encode' | 'draw' | 'png' | 'bytes' | 'crc';
+type SliceEncodeStage = 'encode' | 'draw' | 'blob' | 'bytes' | 'crc';
 const MAX_IMAGE_BITMAP_CACHE_ITEMS = 3;
 
 export class CanvasSliceWorkerRenderer {
@@ -11,6 +16,7 @@ export class CanvasSliceWorkerRenderer {
   private readonly imageCache = new ImageBitmapLruCache(MAX_IMAGE_BITMAP_CACHE_ITEMS);
   private readonly canvas = new OffscreenCanvas(1, 1);
   private readonly ctx: OffscreenCanvasRenderingContext2D;
+  private output = DEFAULT_IMAGE_OUTPUT_OPTIONS;
 
   public constructor() {
     const ctx = this.canvas.getContext('2d');
@@ -22,7 +28,12 @@ export class CanvasSliceWorkerRenderer {
     this.ctx = ctx;
   }
 
-  public registerSources(sources: readonly SliceSourceDto[]): void {
+  public registerSources(
+    sources: readonly SliceSourceDto[],
+    output: ImageOutputOptions = DEFAULT_IMAGE_OUTPUT_OPTIONS,
+  ): void {
+    this.output = ImageOutputFormatRegistry.normalizeOptions(output);
+
     for (const source of sources) {
       this.sources.set(source.id, source.file);
     }
@@ -62,10 +73,20 @@ export class CanvasSliceWorkerRenderer {
       this.mark(job, 'draw', 'end');
       this.measure(job, 'draw');
 
-      this.mark(job, 'png', 'start');
-      const blob = await this.canvas.convertToBlob({ type: 'image/png' });
-      this.mark(job, 'png', 'end');
-      this.measure(job, 'png');
+      const encodeOptions = ImageOutputFormatRegistry.toEncodeOptions(this.output);
+
+      this.mark(job, 'blob', 'start');
+      const blob = await this.canvas.convertToBlob(encodeOptions);
+      this.mark(job, 'blob', 'end');
+      this.measure(job, 'blob');
+
+      if (blob.type !== encodeOptions.type) {
+        throw new Error(
+          `Browser encoded "${job.name}" as ${blob.type || 'unknown'} instead of ${
+            encodeOptions.type
+          }.`,
+        );
+      }
 
       this.mark(job, 'bytes', 'start');
       const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -81,7 +102,7 @@ export class CanvasSliceWorkerRenderer {
       return {
         index: job.index,
         name: job.name,
-        type: 'image/png',
+        type: encodeOptions.type,
         bytes,
         size: bytes.byteLength,
         crc32: crc32.digest(),

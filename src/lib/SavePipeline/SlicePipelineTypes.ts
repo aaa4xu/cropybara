@@ -1,3 +1,5 @@
+import type { ImageOutputMimeType } from '$lib/ImageOutputFormat';
+
 export interface SliceSourceDto {
   readonly id: number;
   readonly file: File;
@@ -30,7 +32,7 @@ export interface SliceJobDto {
 export interface EncodedSliceDto {
   readonly index: number;
   readonly name: string;
-  readonly type: 'image/png';
+  readonly type: ImageOutputMimeType;
   readonly bytes: Uint8Array;
   readonly size: number;
   readonly crc32: number;

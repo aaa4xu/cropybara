@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { ZipEntriesSink } from '$lib/ImageSaver/ZipEntriesSink';
 import { ImageFile } from '$lib/ImageFile';
+import { ImageOutputFormat } from '$lib/ImageOutputFormat';
 import { Crc32, type StoredZipEntrySource } from '$lib/ZipWriter';
 
 import { SaveResultService } from './SaveResultService';
@@ -82,6 +83,27 @@ describe('SaveResultService', () => {
     expect(onProgress).toHaveBeenCalledTimes(2);
     expect(sink.close).not.toHaveBeenCalled();
     expect(sink.abort).not.toHaveBeenCalled();
+  });
+
+  it('plans entries with the selected output extension', async () => {
+    const encoder = new FakeSliceEncoder(async (job) => ({
+      ...encoded(job),
+      type: 'image/jpeg',
+    }));
+    const sink = new MemoryEntriesSink();
+
+    await new SaveResultService(new SlicePlanFactory(), encoder, 1, {
+      format: ImageOutputFormat.Jpeg,
+      quality: 80,
+    }).writeToSink({
+      images: [image('first.png', 10, 100)],
+      cuts: [50],
+      signal: new AbortController().signal,
+      sink,
+    });
+
+    expect(sink.entries.map((entry) => entry.name)).toStrictEqual(['1.jpg', '2.jpg']);
+    expect(encoder.jobs.map((job) => job.name)).toStrictEqual(['1.jpg', '2.jpg']);
   });
 
   it('propagates encoder errors', async () => {

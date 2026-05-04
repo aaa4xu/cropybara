@@ -9,7 +9,7 @@ self.onmessage = async (event: MessageEvent<SliceWorkerRequest>) => {
 
   try {
     if (message.kind === 'register-sources') {
-      renderer.registerSources(message.sources);
+      renderer.registerSources(message.sources, message.output);
       postMessage({ kind: 'sources-registered' } satisfies SliceWorkerResponse);
       return;
     }

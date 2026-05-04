@@ -1,9 +1,11 @@
+import type { ImageOutputOptions } from '$lib/ImageOutputFormat';
 import type { EncodedSliceDto, SliceJobDto, SliceSourceDto } from './SlicePipelineTypes';
 
 export type SliceWorkerRequest =
   | {
       readonly kind: 'register-sources';
       readonly sources: readonly SliceSourceDto[];
+      readonly output: ImageOutputOptions;
     }
   | {
       readonly kind: 'encode';

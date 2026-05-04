@@ -1,5 +1,10 @@
 import { CarvingKnife } from '$lib/CarvingKnife/CarvingKnife';
 import type { ImageFile } from '$lib/ImageFile';
+import {
+  DEFAULT_IMAGE_OUTPUT_FORMAT,
+  ImageOutputFormat,
+  ImageOutputFormatRegistry,
+} from '$lib/ImageOutputFormat';
 
 import { SliceCutsValidator } from './SliceCutsValidator';
 import type { SliceChunkDto, SliceJobDto, SliceSourceDto } from './SlicePipelineTypes';
@@ -16,17 +21,22 @@ export class SlicePlanFactory {
     }));
   }
 
-  public create(images: readonly ImageFile[], cuts: readonly number[]): readonly SliceJobDto[] {
+  public create(
+    images: readonly ImageFile[],
+    cuts: readonly number[],
+    format: ImageOutputFormat = DEFAULT_IMAGE_OUTPUT_FORMAT,
+  ): readonly SliceJobDto[] {
     this.cutsValidator.validate(images, cuts);
 
     const sources = this.createSources(images);
     const slices = CarvingKnife.cut(sources, cuts);
     const digits = slices.length.toString().length;
+    const extension = ImageOutputFormatRegistry.get(format).extension;
 
     return slices.map(
       (slice, index): SliceJobDto => ({
         index,
-        name: `${(index + 1).toString().padStart(digits, '0')}.png`,
+        name: `${(index + 1).toString().padStart(digits, '0')}.${extension}`,
         width: slice.width,
         height: slice.height,
         chunks: slice.chunks.map(

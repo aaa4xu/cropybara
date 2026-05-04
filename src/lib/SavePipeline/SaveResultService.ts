@@ -1,5 +1,10 @@
 import type { ZipEntriesSink } from '$lib/ImageSaver/ZipEntriesSink';
 import type { ImageFile } from '$lib/ImageFile';
+import {
+  DEFAULT_IMAGE_OUTPUT_OPTIONS,
+  ImageOutputFormatRegistry,
+  type ImageOutputOptions,
+} from '$lib/ImageOutputFormat';
 import type { StoredZipEntrySource } from '$lib/ZipWriter';
 
 import { OrderedAsyncPool } from './OrderedAsyncPool';
@@ -16,14 +21,19 @@ export interface SaveResultInput {
 }
 
 export class SaveResultService {
+  private readonly output: ImageOutputOptions;
+
   public constructor(
     private readonly planner: SlicePlanFactory,
     private readonly encoder: SliceEncoder,
     private readonly concurrency: number,
-  ) {}
+    output: ImageOutputOptions = DEFAULT_IMAGE_OUTPUT_OPTIONS,
+  ) {
+    this.output = ImageOutputFormatRegistry.normalizeOptions(output);
+  }
 
   public async writeToSink(input: SaveResultInput): Promise<void> {
-    const jobs = this.planner.create(input.images, input.cuts);
+    const jobs = this.planner.create(input.images, input.cuts, this.output.format);
     const pool = new OrderedAsyncPool<SliceJobDto, StoredZipEntrySource>({
       concurrency: this.concurrency,
     });

@@ -7,12 +7,20 @@
   import { onMount } from 'svelte';
   import { Analytics } from '$lib/Analytics';
   import LabeledSelect from '$lib/Components/LabeledSelect.svelte';
+  import { BrowserImageOutputFormatSupport } from '$lib/BrowserImageOutputFormatSupport';
   import {
     ConfigDenoiser,
     ConfigDetector,
     type ConfigState,
     ConfigUnwatermark,
   } from '$lib/ConfigState';
+  import {
+    DEFAULT_IMAGE_OUTPUT_FORMAT,
+    DEFAULT_IMAGE_OUTPUT_QUALITY,
+    ImageOutputFormat,
+    ImageOutputFormatRegistry,
+    type SupportedImageOutputFormat,
+  } from '$lib/ImageOutputFormat';
   import { OnlineState } from '$lib/States/OnlineState.svelte';
   import { AlertsLevel, AlertsState } from '$lib/States/AlertsState.svelte';
   import { getLocale } from '$lib/paraglide/runtime';
@@ -31,6 +39,11 @@
   const alerts = AlertsState.use();
   const minHeightLimit = MIN_CUT_DISTANCE + 1;
   let name = $state(`cropybara-${Math.round(Date.now() / 1000)}`);
+  let outputFormat: ImageOutputFormat = $state(DEFAULT_IMAGE_OUTPUT_FORMAT);
+  let outputQuality = $state(DEFAULT_IMAGE_OUTPUT_QUALITY);
+  let supportedOutputFormats = $state<readonly SupportedImageOutputFormat[]>(
+    ImageOutputFormatRegistry.defaultSupported,
+  );
   let limit = $state(20_000);
   let forceWidth = $state(false);
   let unwatermark = $state(ConfigUnwatermark.Off);
@@ -50,12 +63,26 @@
 
   function handleSubmit(e: Event) {
     e.preventDefault();
+    const selectedOutputFormat = getSelectedOutputFormat();
 
     if (!Number.isFinite(limit) || limit < minHeightLimit) {
       alerts.display(
         AlertsLevel.Error,
         m.ConfigScreen_HeightLimit_MinError({ min: minHeightLimit }),
       );
+      return;
+    }
+
+    if (!selectedOutputFormat) {
+      outputFormat = DEFAULT_IMAGE_OUTPUT_FORMAT;
+      return;
+    }
+
+    if (
+      selectedOutputFormat.supportsQuality &&
+      (!Number.isFinite(outputQuality) || outputQuality < 1 || outputQuality > 100)
+    ) {
+      alerts.display(AlertsLevel.Error, m.ConfigScreen_OutputQuality_RangeError());
       return;
     }
 
@@ -67,6 +94,10 @@
     const config = {
       name,
       limit,
+      output: ImageOutputFormatRegistry.normalizeOptions({
+        format: outputFormat,
+        quality: selectedOutputFormat.supportsQuality ? outputQuality : undefined,
+      }),
       detector: detectorType,
       step: pcDetectorStep,
       sensitivity: pcDetectorSensitivity,
@@ -79,8 +110,24 @@
     onSubmit(config);
   }
 
+  function getSelectedOutputFormat(): SupportedImageOutputFormat | undefined {
+    return supportedOutputFormats.find((format) => format.format === outputFormat);
+  }
+
   onMount(() => {
     Analytics.trackScreen('ConfigScreen');
+    BrowserImageOutputFormatSupport.detect()
+      .then((formats) => {
+        supportedOutputFormats = formats;
+
+        if (!formats.some((format) => format.format === outputFormat)) {
+          outputFormat = DEFAULT_IMAGE_OUTPUT_FORMAT;
+        }
+      })
+      .catch(() => {
+        supportedOutputFormats = ImageOutputFormatRegistry.defaultSupported;
+        outputFormat = DEFAULT_IMAGE_OUTPUT_FORMAT;
+      });
   });
 </script>
 
@@ -94,6 +141,20 @@
     <LabeledInput bind:value={name} required autofocus
       >{m.ConfigScreen_ProjectName_Label()}</LabeledInput
     >
+    <LabeledSelect bind:value={outputFormat}>
+      {#snippet label()}
+        {m.ConfigScreen_OutputFormat_Label()}
+      {/snippet}
+
+      {#each supportedOutputFormats as format (format.format)}
+        <option value={format.format}>{format.label}</option>
+      {/each}
+    </LabeledSelect>
+    {#if getSelectedOutputFormat()?.supportsQuality}
+      <LabeledInput bind:value={outputQuality} required type="number" min={1} max={100} step={1}
+        >{m.ConfigScreen_OutputQuality_Label()}</LabeledInput
+      >
+    {/if}
     <LabeledInput bind:value={limit} required type="number" min={minHeightLimit} max="65000">
       {#snippet bottom()}
         {m.ConfigScreen_TotalSize()}

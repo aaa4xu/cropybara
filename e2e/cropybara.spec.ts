@@ -137,11 +137,40 @@ test('should export a zip archive with processed slices', async ({ page }) => {
 
   const pngFile = zip.file('1.png');
   expect(pngFile).not.toBeNull();
-  const { bytes: pngBytes } = await readPngDimensions(pngFile!);
+  const { bytes: pngBytes } = await readImageDimensions(pngFile!);
   expect(pngBytes.length).toBeGreaterThan(0);
   expect(Array.from(pngBytes.slice(0, 8))).toEqual([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   ]);
+});
+
+test('should export browser-supported formats with quality settings', async ({ page }) => {
+  await mockZipDownload(page);
+  await page.goto('/');
+  await uploadGeneratedChapter(page);
+
+  const formatSelect = page.getByLabel('Output image format');
+  await expect(formatSelect).toHaveValue('png');
+  await expect(page.getByLabel('Quality, %')).toHaveCount(0);
+
+  await formatSelect.selectOption('jpeg');
+  await expect(page.getByLabel('Quality, %')).toHaveValue('92');
+  await page.getByLabel('Quality, %').fill('80');
+  await page.getByLabel('Project name').fill('jpeg-slices');
+  await page.getByLabel('Height limit, px').fill('120');
+  await page.getByLabel('Detector type').selectOption('Manual');
+  await page.getByRole('button', { name: 'Process' }).click();
+
+  const { zip, suggestedName } = await saveAndReadZip(page);
+  expect(suggestedName).toBe('jpeg-slices.zip');
+  expect(Object.keys(zip.files).sort()).toEqual(['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg']);
+
+  const jpegFile = zip.file('1.jpg');
+  expect(jpegFile).not.toBeNull();
+  const { bytes: jpegBytes, width, height } = await readImageDimensions(jpegFile!);
+  expect(Array.from(jpegBytes.slice(0, 3))).toEqual([0xff, 0xd8, 0xff]);
+  expect(width).toBe(64);
+  expect(height).toBe(120);
 });
 
 test('should export all manual slices with expected dimensions', async ({ page }) => {
@@ -162,7 +191,7 @@ test('should export all manual slices with expected dimensions', async ({ page }
     ['1.png', '2.png', '3.png', '4.png', '5.png'].map(async (name) => {
       const file = zip.file(name);
       expect(file).not.toBeNull();
-      return readPngDimensions(file!);
+      return readImageDimensions(file!);
     }),
   );
 
@@ -204,7 +233,7 @@ test('should require confirmation before resizing width outliers and export resi
     ['1.png', '2.png', '3.png', '4.png'].map(async (name) => {
       const file = zip.file(name);
       expect(file).not.toBeNull();
-      return readPngDimensions(file!);
+      return readImageDimensions(file!);
     }),
   );
 
@@ -394,7 +423,7 @@ async function getLastSavedZip(page: Page) {
   };
 }
 
-async function readPngDimensions(file: JSZip.JSZipObject) {
+async function readImageDimensions(file: JSZip.JSZipObject) {
   const bytes = await file.async('uint8array');
   const image = await loadImage(Buffer.from(bytes));
 

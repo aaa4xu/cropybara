@@ -1,6 +1,9 @@
+import type { ImageOutputOptions } from './ImageOutputFormat';
+
 export interface ConfigStateCommon {
   name: string;
   limit: number;
+  output: ImageOutputOptions;
   denoiser: ConfigDenoiser;
   unwatermark: ConfigUnwatermark;
 }

@@ -1,4 +1,9 @@
 import { AbortPromise } from './AbortPromise';
+import {
+  DEFAULT_IMAGE_OUTPUT_OPTIONS,
+  ImageOutputFormatRegistry,
+  type ImageOutputOptions,
+} from '$lib/ImageOutputFormat';
 import type { SliceEncoder } from './SliceEncoder';
 import type { SliceWorkerRequest, SliceWorkerResponse } from './SliceWorkerMessages';
 import type { EncodedSliceDto, SliceJobDto, SliceSourceDto } from './SlicePipelineTypes';
@@ -6,6 +11,7 @@ import type { EncodedSliceDto, SliceJobDto, SliceSourceDto } from './SlicePipeli
 interface WorkerSliceEncoderPoolOptions {
   readonly sources: readonly SliceSourceDto[];
   readonly workers: number;
+  readonly output?: ImageOutputOptions;
 }
 
 interface PendingRequest {
@@ -41,7 +47,10 @@ class WorkerSliceEncoderClient {
     return !this.failed;
   }
 
-  public registerSources(sources: readonly SliceSourceDto[]): Promise<void> {
+  public registerSources(
+    sources: readonly SliceSourceDto[],
+    output: ImageOutputOptions,
+  ): Promise<void> {
     if (this.failed) {
       return Promise.reject(new Error('Slice encoder worker is not available.'));
     }
@@ -57,6 +66,7 @@ class WorkerSliceEncoderClient {
         this.worker.postMessage({
           kind: 'register-sources',
           sources,
+          output,
         } satisfies SliceWorkerRequest);
       } catch (error) {
         this.registration = null;
@@ -181,6 +191,9 @@ export class WorkerSliceEncoderPool implements SliceEncoder {
     options: WorkerSliceEncoderPoolOptions,
   ): Promise<WorkerSliceEncoderPool> {
     const workerCount = this.normalizeWorkerCount(options.workers);
+    const output = ImageOutputFormatRegistry.normalizeOptions(
+      options.output ?? DEFAULT_IMAGE_OUTPUT_OPTIONS,
+    );
 
     const workers: WorkerSliceEncoderClient[] = [];
 
@@ -195,7 +208,7 @@ export class WorkerSliceEncoderPool implements SliceEncoder {
         );
       }
 
-      await Promise.all(workers.map((worker) => worker.registerSources(options.sources)));
+      await Promise.all(workers.map((worker) => worker.registerSources(options.sources, output)));
 
       return new WorkerSliceEncoderPool(workers);
     } catch (error) {
