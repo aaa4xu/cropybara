@@ -7,12 +7,44 @@
   import { Analytics } from '$lib/Analytics';
   import { m } from '$lib/paraglide/messages.js';
   import { markTrace } from '$lib/utils/performanceTrace';
+  import {
+    watchReadyServiceWorkerUpdate,
+    type ServiceWorkerUpdateWatcher,
+  } from '$lib/ServiceWorkerUpdate';
+  import { WebShareTarget } from '$lib/WebShareTarget';
 
   const { onImages }: { onImages: (images: ImageFile[]) => void } = $props();
+  let installingUpdate = $state(false);
+  let updateWatcher: ServiceWorkerUpdateWatcher | null = null;
+
   onMount(() => {
     Analytics.trackScreen('UploadImageScreen');
     markTrace('upload-screen:ready');
+
+    if (WebShareTarget.isLaunch()) {
+      return;
+    }
+
+    updateWatcher = watchReadyServiceWorkerUpdate({
+      onReady: (event) => {
+        installingUpdate = true;
+        event.apply();
+      },
+    });
+
+    return () => {
+      updateWatcher?.stop();
+    };
   });
+
+  function handleSourceSelected() {
+    if (installingUpdate) {
+      return;
+    }
+
+    updateWatcher?.stop();
+    updateWatcher = null;
+  }
 </script>
 
 <svelte:head>
@@ -23,13 +55,23 @@
   <header>
     <InstallButton />
   </header>
-  <LocalFilePicker {onImages} />
+  {#if installingUpdate}
+    <p class="update-status" role="status" aria-live="polite">
+      {m.UploadImagesScreen_UpdateInstalling()}
+    </p>
+  {/if}
+  <LocalFilePicker {onImages} disabled={installingUpdate} onSourceSelected={handleSourceSelected} />
   <footer>
     <Footer />
   </footer>
 </main>
 
 <style lang="scss">
+  .update-status {
+    text-align: center;
+    margin: 0 1rem 1rem;
+  }
+
   main {
     display: flex;
     flex-direction: column;

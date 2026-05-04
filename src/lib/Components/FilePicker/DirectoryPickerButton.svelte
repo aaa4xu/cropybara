@@ -7,7 +7,7 @@
 
   const progressBar = ProgressBarState.use();
   const isSupported = browser && 'webkitdirectory' in document.createElement('input');
-  const { onFiles, ...rest }: LocalFilesPickerProps = $props();
+  const { onFiles, disabled = false, ...rest }: LocalFilesPickerProps = $props();
 
   function handleFiles(files: File[]) {
     // webkitdirectory return a list of files in a directory without any kind of sorting
@@ -27,7 +27,7 @@
     webkitdirectory
     accept="application/non-existing-mime-type"
     onFiles={handleFiles}
-    disabled={progressBar.display}
+    disabled={disabled || progressBar.display}
     {...rest}
   >
     <svg

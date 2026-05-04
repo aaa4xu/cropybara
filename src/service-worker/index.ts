@@ -3,6 +3,7 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 import { base, build, files, prerendered, version } from '$service-worker';
+import { SERVICE_WORKER_SKIP_WAITING_MESSAGE } from '../lib/ServiceWorkerMessages';
 import { WebShareTarget } from '../lib/WebShareTarget';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
@@ -109,6 +110,14 @@ sw.addEventListener('activate', (event) => {
   }
 
   event.waitUntil(deleteOldCaches());
+});
+
+sw.addEventListener('message', (event) => {
+  const message = event.data as { type?: unknown } | null;
+
+  if (message?.type === SERVICE_WORKER_SKIP_WAITING_MESSAGE) {
+    event.waitUntil(sw.skipWaiting());
+  }
 });
 
 sw.addEventListener('fetch', (event) => {

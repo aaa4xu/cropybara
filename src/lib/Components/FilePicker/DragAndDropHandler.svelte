@@ -5,7 +5,7 @@
   import { AlertsLevel, AlertsState } from '$lib/States/AlertsState.svelte';
   import { DOM_EXCEPTION_NAMES, hasDomExceptionName } from '$lib/utils/domException';
 
-  const { onFiles }: LocalFilesPickerProps = $props();
+  const { onFiles, disabled = false, onSourceSelected }: LocalFilesPickerProps = $props();
   const progressBar = ProgressBarState.use();
   const alerts = AlertsState.use();
   let displayDropZone = $state(false);
@@ -30,6 +30,7 @@
   }
 
   function handleDragEnter(event: DragEvent) {
+    if (disabled) return;
     if (!event.dataTransfer?.types.includes('Files')) return;
     event.preventDefault();
     displayDropZone = true;
@@ -52,7 +53,8 @@
   async function handleDrop(event: DragEvent) {
     event.preventDefault();
     handleDragLeave(event);
-    if (progressBar.display) return;
+    if (disabled || progressBar.display) return;
+    onSourceSelected?.();
 
     const items = Array.from(event.dataTransfer?.items ?? []);
     if (items.length === 0) {
@@ -250,7 +252,7 @@
   ondrop={handleDrop}
   aria-label={m.Picker_DragAndDropHandler_Label()}
 >
-  {progressBar.display
+  {disabled || progressBar.display
     ? m.Picker_DragAndDropHandler_Disabled()
     : m.Picker_DragAndDropHandler_Text()}
 </section>

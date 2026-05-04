@@ -8,7 +8,7 @@
 
   const alerts = AlertsState.use();
   const progressBar = ProgressBarState.use();
-  const { onFiles, ...rest }: LocalFilesPickerProps = $props();
+  const { onFiles, disabled = false }: LocalFilesPickerProps = $props();
   const isSupported = browser && 'clipboard' in navigator && 'read' in navigator.clipboard;
 
   /**
@@ -18,6 +18,8 @@
    * This function reads that raw image data from the clipboard.
    */
   async function pasteFromClipboard() {
+    if (disabled || progressBar.display) return;
+
     const state = $state({ total: 1, ready: 0 });
     const task = () => state;
 
@@ -82,7 +84,7 @@
 </script>
 
 {#if isSupported}
-  <Button onclick={pasteFromClipboard} disabled={progressBar.display} {...rest}>
+  <Button onclick={pasteFromClipboard} disabled={disabled || progressBar.display}>
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="16"

@@ -5,10 +5,10 @@
   import { ProgressBarState } from '$lib/States/ProgressBarState.svelte';
 
   const progressBar = ProgressBarState.use();
-  const { ...rest }: LocalFilesPickerProps = $props();
+  const { disabled = false, ...rest }: LocalFilesPickerProps = $props();
 </script>
 
-<FileInputButton multiple accept="image/*" disabled={progressBar.display} {...rest}>
+<FileInputButton multiple accept="image/*" disabled={disabled || progressBar.display} {...rest}>
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="16"

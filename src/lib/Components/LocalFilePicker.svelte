@@ -23,12 +23,34 @@
   import { Analytics } from '$lib/Analytics';
   import { markTrace, measureTrace } from '$lib/utils/performanceTrace';
 
+  interface Props {
+    onImages: (images: ImageFile[]) => void;
+    disabled?: boolean;
+    onSourceSelected?: () => void;
+  }
+
   const alerts = AlertsState.use();
   const progressBar = ProgressBarState.use();
-  const { onImages }: { onImages: (images: ImageFile[]) => void } = $props();
+  const { onImages, disabled = false, onSourceSelected = () => undefined }: Props = $props();
   const queue = pLimit(browser ? (navigator?.hardwareConcurrency ?? 4) : 1);
+  let sourceSelected = false;
+
+  function notifySourceSelected() {
+    if (disabled || sourceSelected) {
+      return;
+    }
+
+    sourceSelected = true;
+    onSourceSelected();
+  }
 
   async function handleFiles(files: File[]) {
+    if (disabled) {
+      return;
+    }
+
+    notifySourceSelected();
+
     if (files.length === 0) {
       alerts.display(AlertsLevel.Warning, m.Picker_LocalFilePicker_NoFilesSelected());
       return;
@@ -155,16 +177,38 @@
 <section>
   <h1>{m.Picker_LocalFilePicker_Header()}</h1>
 
-  <div>
-    <ImagesPickerButton onFiles={Analytics.trackUpload('ImagesPickerButton', handleFiles)} />
-    <DirectoryPickerButton onFiles={Analytics.trackUpload('DirectoryPickerButton', handleFiles)} />
+  <div onclickcapture={notifySourceSelected}>
+    <ImagesPickerButton
+      {disabled}
+      onFiles={Analytics.trackUpload('ImagesPickerButton', handleFiles)}
+    />
+    <DirectoryPickerButton
+      {disabled}
+      onFiles={Analytics.trackUpload('DirectoryPickerButton', handleFiles)}
+    />
     <ZipArchivePickerButton
+      {disabled}
       onFiles={Analytics.trackUpload('ZipArchivePickerButton', handleFiles)}
     />
-    <ClipboardPasteButton onFiles={Analytics.trackUpload('ClipboardPasteButton', handleFiles)} />
-    <ClipboardPasteHandler onFiles={Analytics.trackUpload('ClipboardPasteHandler', handleFiles)} />
-    <DragAndDropHandler onFiles={Analytics.trackUpload('DragAndDropHandler', handleFiles)} />
-    <WebShareTargetHandler onFiles={Analytics.trackUpload('WebShareTargetHandler', handleFiles)} />
+    <ClipboardPasteButton
+      {disabled}
+      onFiles={Analytics.trackUpload('ClipboardPasteButton', handleFiles)}
+    />
+    <ClipboardPasteHandler
+      {disabled}
+      onSourceSelected={notifySourceSelected}
+      onFiles={Analytics.trackUpload('ClipboardPasteHandler', handleFiles)}
+    />
+    <DragAndDropHandler
+      {disabled}
+      onSourceSelected={notifySourceSelected}
+      onFiles={Analytics.trackUpload('DragAndDropHandler', handleFiles)}
+    />
+    <WebShareTargetHandler
+      {disabled}
+      onSourceSelected={notifySourceSelected}
+      onFiles={Analytics.trackUpload('WebShareTargetHandler', handleFiles)}
+    />
   </div>
 </section>
 

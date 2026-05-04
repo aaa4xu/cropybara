@@ -26,6 +26,7 @@
   "Picker_LocalFilePicker_ErrorInvalidFileType": "Tệp \"{name}\" không phải là ảnh mà là {type}.",
   "Picker_LocalFilePicker_ErrorImageLoadingFailed": "Không thể đọc ảnh \"{name}\": {error}",
   "UploadImagesScreen_Title": "Cropybara — Ghép và cắt webtoon",
+  "UploadImagesScreen_UpdateInstalling": "Đang cài đặt bản cập nhật…",
   "UploadImagesScreen_SourceCodeLink_Text": "Mã nguồn",
   "ConfigScreen_Title": "Cropybara — Cài đặt",
   "ConfigScreen_Header": "Cài đặt",

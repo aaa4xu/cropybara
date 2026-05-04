@@ -26,6 +26,7 @@
   "Picker_LocalFilePicker_ErrorInvalidFileType": "Файл \"{name}\" это не изображение, а {type}.",
   "Picker_LocalFilePicker_ErrorImageLoadingFailed": "Не удалось прочитать изображение \"{name}\": {error}",
   "UploadImagesScreen_Title": "Cropybara — Склейка и нарезка вебтунов",
+  "UploadImagesScreen_UpdateInstalling": "Устанавливаем обновление…",
   "UploadImagesScreen_SourceCodeLink_Text": "Исходный код",
   "ConfigScreen_Title": "Cropybara — Настройки",
   "ConfigScreen_Header": "Настройки",

@@ -26,6 +26,7 @@
   "Picker_LocalFilePicker_ErrorInvalidFileType": "File \"{name}\" is not an image but {type}.",
   "Picker_LocalFilePicker_ErrorImageLoadingFailed": "Failed to read image \"{name}\": {error}",
   "UploadImagesScreen_Title": "Cropybara — Webtoon Stitcher & Cropper",
+  "UploadImagesScreen_UpdateInstalling": "Installing update…",
   "UploadImagesScreen_SourceCodeLink_Text": "Source code",
   "ConfigScreen_Title": "Cropybara — Settings",
   "ConfigScreen_Header": "Settings",
