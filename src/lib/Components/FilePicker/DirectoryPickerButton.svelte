@@ -18,7 +18,7 @@
       }),
     );
 
-    onFiles(files);
+    return onFiles(files);
   }
 </script>
 

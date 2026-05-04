@@ -12,7 +12,7 @@ export class Analytics {
     });
   }
 
-  public static trackUpload(source: string, onFiles: (files: File[]) => void) {
+  public static trackUpload(source: string, onFiles: (files: File[]) => void | Promise<void>) {
     return (files: File[]) => {
       if (browser) {
         posthog.capture('upload', {
@@ -22,7 +22,7 @@ export class Analytics {
         });
       }
 
-      onFiles(files);
+      return onFiles(files);
     };
   }
 

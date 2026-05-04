@@ -4,7 +4,7 @@
   import type { HTMLInputAttributes } from 'svelte/elements';
 
   type Props = Omit<HTMLInputAttributes, 'type'> & {
-    onFiles: (files: File[]) => void;
+    onFiles: (files: File[]) => void | Promise<void>;
     children: Snippet;
   };
 
