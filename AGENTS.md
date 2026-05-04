@@ -42,13 +42,12 @@
 
 - Unit tests: Vitest. Co-locate with code (`*.spec.ts`).
 - E2E: Playwright tests in `e2e/` (e.g., `e2e/cropybara.spec.ts`).
-- Agents must obtain approval via an escalated command request (no separate text prompt) before running `bun run test:e2e`.
 - Write tests for new features and bug fixes; keep them deterministic and fast.
 - For image-processing changes, prefer deterministic fixture-based tests under the touched
   module, using existing fixtures where possible.
 - Quick run examples: `bun run test:unit -- --run -t "CarvingKnife"`.
 - Before merging accepted changes, run `bun run lint`, `bun run check`,
-  `bun run test:unit -- --run`, and `bun run build`.
+  `bun run test`, and `bun run build`.
 
 ## Commit & Pull Request Guidelines
 
