@@ -38,3 +38,6 @@ src/lib/paraglide
 /blob-report/
 /playwright/.cache/
 /tests-examples
+
+# Local browser traces
+/benchmarks/traces/
