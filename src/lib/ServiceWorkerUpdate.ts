@@ -4,7 +4,7 @@ import {
 } from '$lib/ServiceWorkerMessages';
 
 type ReloadPage = () => void;
-type IsInstalledAppClient = () => boolean;
+type ShouldWatchClient = () => boolean;
 
 export interface ServiceWorkerUpdateReadyEvent {
   readonly apply: () => boolean;
@@ -16,13 +16,13 @@ export interface ServiceWorkerUpdateWatcher {
 
 interface WatchReadyServiceWorkerUpdateOptions {
   readonly onReady: (event: ServiceWorkerUpdateReadyEvent) => void;
-  readonly isInstalledAppClient?: IsInstalledAppClient;
+  readonly shouldWatchClient?: ShouldWatchClient;
   readonly reloadPage?: ReloadPage;
 }
 
 export function watchReadyServiceWorkerUpdate({
   onReady,
-  isInstalledAppClient = detectInstalledAppClient,
+  shouldWatchClient = () => true,
   reloadPage = () => window.location.reload(),
 }: WatchReadyServiceWorkerUpdateOptions): ServiceWorkerUpdateWatcher {
   let activationRequested = false;
@@ -38,7 +38,7 @@ export function watchReadyServiceWorkerUpdate({
 
   const serviceWorker = getServiceWorkerContainer();
 
-  if (!isInstalledAppClient() || !serviceWorker?.controller) {
+  if (!shouldWatchClient() || !serviceWorker?.controller) {
     return { stop };
   }
 
@@ -132,14 +132,6 @@ export function watchReadyServiceWorkerUpdate({
 
     activationRequested = true;
 
-    serviceWorkerContainer.addEventListener(
-      'controllerchange',
-      () => {
-        reloadOnce();
-      },
-      { once: true },
-    );
-
     if (worker.state === 'activated') {
       reloadOnce();
       return true;
@@ -175,18 +167,6 @@ export function watchReadyServiceWorkerUpdate({
       cleanup();
     }
   }
-}
-
-function detectInstalledAppClient(): boolean {
-  if (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) {
-    return true;
-  }
-
-  return (
-    typeof navigator !== 'undefined' &&
-    'standalone' in navigator &&
-    Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
-  );
 }
 
 function getServiceWorkerContainer(): ServiceWorkerContainer | null {

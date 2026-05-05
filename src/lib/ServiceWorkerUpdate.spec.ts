@@ -63,13 +63,13 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     stubServiceWorkerContainer(undefined);
 
-    watchReadyServiceWorkerUpdate({ onReady, isInstalledAppClient: () => true });
+    watchReadyServiceWorkerUpdate({ onReady });
     await flushAsync();
 
     expect(onReady).not.toHaveBeenCalled();
   });
 
-  it('does not watch updates for regular browser-mode clients', async () => {
+  it('does not watch updates when the current client is explicitly skipped', async () => {
     const { watchReadyServiceWorkerUpdate } = await importSubject();
     const onReady = vi.fn();
     const waiting = new MockServiceWorker();
@@ -81,7 +81,7 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     stubServiceWorkerContainer(serviceWorker as unknown as ServiceWorkerContainer);
 
-    watchReadyServiceWorkerUpdate({ onReady, isInstalledAppClient: () => false });
+    watchReadyServiceWorkerUpdate({ onReady, shouldWatchClient: () => false });
     await flushAsync();
 
     expect(serviceWorker.getRegistration).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     stubServiceWorkerContainer(serviceWorker as unknown as ServiceWorkerContainer);
 
-    watchReadyServiceWorkerUpdate({ onReady, isInstalledAppClient: () => true });
+    watchReadyServiceWorkerUpdate({ onReady });
     await flushAsync();
 
     expect(registration.update).not.toHaveBeenCalled();
@@ -122,7 +122,6 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     watchReadyServiceWorkerUpdate({
       onReady,
-      isInstalledAppClient: () => true,
       reloadPage: reload,
     });
     await flushAsync();
@@ -144,6 +143,38 @@ describe('watchReadyServiceWorkerUpdate', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it('waits for the updated worker to activate before reloading', async () => {
+    const { watchReadyServiceWorkerUpdate } = await importSubject();
+    const reload = vi.fn();
+    const onReady = vi.fn<(event: ServiceWorkerUpdateReadyEvent) => void>();
+    const waiting = new MockServiceWorker();
+    const registration = new MockServiceWorkerRegistration();
+    registration.waiting = waiting as unknown as ServiceWorker;
+    const serviceWorker = new MockServiceWorkerContainer(
+      registration as unknown as ServiceWorkerRegistration,
+    );
+
+    stubServiceWorkerContainer(serviceWorker as unknown as ServiceWorkerContainer);
+
+    watchReadyServiceWorkerUpdate({
+      onReady,
+      reloadPage: reload,
+    });
+    await flushAsync();
+
+    const [event] = onReady.mock.calls[0];
+    expect(event.apply()).toBe(true);
+
+    serviceWorker.dispatchEvent(new Event('controllerchange'));
+    waiting.setState('activating');
+
+    expect(reload).not.toHaveBeenCalled();
+
+    waiting.setState('activated');
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   it('checks for an update and reports it when it becomes waiting', async () => {
     const { watchReadyServiceWorkerUpdate } = await importSubject();
     const onReady = vi.fn<(event: ServiceWorkerUpdateReadyEvent) => void>();
@@ -159,7 +190,7 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     stubServiceWorkerContainer(serviceWorker as unknown as ServiceWorkerContainer);
 
-    watchReadyServiceWorkerUpdate({ onReady, isInstalledAppClient: () => true });
+    watchReadyServiceWorkerUpdate({ onReady });
     await flushAsync();
 
     expect(registration.update).toHaveBeenCalledTimes(1);
@@ -188,7 +219,7 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     stubServiceWorkerContainer(serviceWorker as unknown as ServiceWorkerContainer);
 
-    const watcher = watchReadyServiceWorkerUpdate({ onReady, isInstalledAppClient: () => true });
+    const watcher = watchReadyServiceWorkerUpdate({ onReady });
     await flushAsync();
     expect(registration.update).toHaveBeenCalledTimes(1);
 
@@ -216,7 +247,7 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     stubServiceWorkerContainer(serviceWorker as unknown as ServiceWorkerContainer);
 
-    watchReadyServiceWorkerUpdate({ onReady, isInstalledAppClient: () => true });
+    watchReadyServiceWorkerUpdate({ onReady });
     await flushAsync();
 
     expect(onReady).not.toHaveBeenCalled();
@@ -243,7 +274,7 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     stubServiceWorkerContainer(serviceWorker as unknown as ServiceWorkerContainer);
 
-    const watcher = watchReadyServiceWorkerUpdate({ onReady, isInstalledAppClient: () => true });
+    const watcher = watchReadyServiceWorkerUpdate({ onReady });
     await flushAsync();
 
     watcher.stop();
@@ -264,7 +295,7 @@ describe('watchReadyServiceWorkerUpdate', () => {
 
     stubServiceWorkerContainer(serviceWorker as unknown as ServiceWorkerContainer);
 
-    watchReadyServiceWorkerUpdate({ onReady, isInstalledAppClient: () => true });
+    watchReadyServiceWorkerUpdate({ onReady });
     await flushAsync();
 
     expect(onReady).not.toHaveBeenCalled();
