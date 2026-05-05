@@ -22,6 +22,17 @@ describe('Analytics', () => {
   beforeEach(() => {
     captureExceptionMock.mockClear();
     captureMock.mockClear();
+    vi.stubGlobal('navigator', {
+      hardwareConcurrency: 8,
+      deviceMemory: 4,
+    });
+    vi.stubGlobal('performance', {
+      memory: {
+        usedJSHeapSize: 1,
+        totalJSHeapSize: 2,
+        jsHeapSizeLimit: 3,
+      },
+    });
   });
 
   it('captures processing failures as both an event and a PostHog exception', () => {
