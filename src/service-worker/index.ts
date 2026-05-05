@@ -12,6 +12,7 @@ const sw = self as unknown as ServiceWorkerGlobalScope;
 const CACHE = `cache-${version}`;
 const APP_SHELL = `${base}/`;
 const BUNDLE_REFERENCE_PATTERN = /["'`]((?:\.\.\/workers\/|\.\/chunks\/)[^"'`]+\.js)["'`]/g;
+const APP_SHELL_ASSET_REFERENCE_PATTERN = /["'`]([^"'`]*\/_app\/immutable\/[^"'`]+)["'`]/g;
 
 const ASSETS = [
   APP_SHELL,
@@ -32,6 +33,45 @@ function resolveSameOriginPath(pathname: string, sourcePathname: string): string
   const url = new URL(pathname, new URL(sourcePathname, sw.location.origin));
 
   return url.origin === sw.location.origin ? url.pathname : null;
+}
+
+function findAppShellAssetReferences(source: string): string[] {
+  const references = new Set<string>();
+
+  for (const match of source.matchAll(APP_SHELL_ASSET_REFERENCE_PATTERN)) {
+    const reference = resolveSameOriginPath(match[1], APP_SHELL);
+
+    if (reference) {
+      references.add(reference);
+    }
+  }
+
+  return [...references];
+}
+
+function assertAppShellReferencesCurrentBuild(source: string): void {
+  const staleReferences = findAppShellAssetReferences(source).filter(
+    (reference) => !ASSETS.includes(reference),
+  );
+
+  if (staleReferences.length > 0) {
+    throw new Error(
+      `Refusing to cache app shell with stale build references: ${staleReferences.join(', ')}`,
+    );
+  }
+}
+
+async function addAppShellToCache(cache: Cache): Promise<void> {
+  const request = new Request(APP_SHELL, { cache: 'reload' });
+  const response = await fetch(request);
+
+  if (!response.ok) {
+    throw new Error(`Failed to cache app shell ${APP_SHELL}: ${response.status}`);
+  }
+
+  const source = await response.clone().text();
+  assertAppShellReferencesCurrentBuild(source);
+  await cache.put(APP_SHELL, response);
 }
 
 async function findBundledWorkerReferences(cache: Cache, pathname: string): Promise<string[]> {
@@ -94,7 +134,8 @@ sw.addEventListener('install', (event) => {
   // Create a new cache and add all files to it
   async function addFilesToCache() {
     const cache = await caches.open(CACHE);
-    await cache.addAll(ASSETS);
+    await cache.addAll(ASSETS.filter((asset) => asset !== APP_SHELL));
+    await addAppShellToCache(cache);
     await addDiscoveredWorkerBundlesToCache(cache);
   }
 
